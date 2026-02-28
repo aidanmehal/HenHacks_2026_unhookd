@@ -18,9 +18,9 @@
 "use strict";
 
 
-// ---------------------------------------------------------------------------
+// 
 // Risk level thresholds
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Map a 0–100 risk score to a human-readable risk level and CSS class.
@@ -39,9 +39,9 @@ function getRiskLevel(score) {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // DOM helpers
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Render a score, risk badge, flag list, and explanation into a panel.
@@ -119,9 +119,9 @@ function escapeHtml(str) {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // Tab switching
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Wire up the Email / Link tab buttons to show/hide the correct panel.
@@ -154,9 +154,9 @@ function initTabs() {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // Initialisation — runs when popup DOM is ready
-// ---------------------------------------------------------------------------
+// 
 
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();

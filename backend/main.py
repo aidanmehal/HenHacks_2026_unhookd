@@ -14,9 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.analyze import router as analyze_router
 
 
-# ---------------------------------------------------------------------------
+# 
 # App initialisation
-# ---------------------------------------------------------------------------
+# 
 
 app = FastAPI(
     title="unhookd API",
@@ -28,9 +28,9 @@ app = FastAPI(
 )
 
 
-# ---------------------------------------------------------------------------
+# 
 # CORS — allow the Chrome extension origin during development
-# ---------------------------------------------------------------------------
+# 
 
 # TODO: Restrict allowed origins to the published extension ID in production.
 #       Chrome extension origins look like: chrome-extension://<id>
@@ -43,16 +43,16 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------------
+# 
 # Routers
-# ---------------------------------------------------------------------------
+# 
 
 app.include_router(analyze_router)
 
 
-# ---------------------------------------------------------------------------
+# 
 # Health check
-# ---------------------------------------------------------------------------
+# 
 
 @app.get("/health", tags=["Health"])
 async def health_check() -> dict:

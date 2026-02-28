@@ -19,17 +19,17 @@
 
 "use strict";
 
-// ---------------------------------------------------------------------------
+// 
 // Configuration
-// ---------------------------------------------------------------------------
+// 
 
 /** Base URL of the unhookd FastAPI backend. Change for production. */
 const API_BASE_URL = "http://localhost:8000";
 
 
-// ---------------------------------------------------------------------------
+// 
 // Message handler — listens to messages from content.js
-// ---------------------------------------------------------------------------
+// 
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   /**
@@ -62,9 +62,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 
-// ---------------------------------------------------------------------------
+// 
 // API call helpers
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Send email metadata to the backend and return the risk assessment.

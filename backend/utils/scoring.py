@@ -9,10 +9,10 @@ tune weights without touching the heuristic rules.
 from typing import Dict, List
 
 
-# ---------------------------------------------------------------------------
+# 
 # Flag weight registry
 # Maps flag identifiers to their numeric severity contribution (0–100 scale).
-# ---------------------------------------------------------------------------
+# 
 
 EMAIL_FLAG_WEIGHTS: Dict[str, int] = {
     # Sender / domain signals
@@ -47,9 +47,9 @@ LINK_FLAG_WEIGHTS: Dict[str, int] = {
 }
 
 
-# ---------------------------------------------------------------------------
+# 
 # Score calculation helpers
-# ---------------------------------------------------------------------------
+# 
 
 def calculate_score(flags: List[str], weight_map: Dict[str, int]) -> int:
     """
