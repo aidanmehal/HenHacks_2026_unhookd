@@ -13,12 +13,20 @@ a Gemini API key is available (loaded from environment variables — never
 hardcoded).
 """
 
+import os
+from pathlib import Path
 from typing import List
 
+from dotenv import load_dotenv
+from google import genai
 
-# ---------------------------------------------------------------------------
+# Load .env from the same directory as this file
+load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
 # Prompt builders (stubbed)
-# ---------------------------------------------------------------------------
+
 
 def _build_email_prompt(risk_score: int, flags: List[str]) -> str:
     """
@@ -69,9 +77,9 @@ def _build_link_prompt(risk_score: int, flags: List[str]) -> str:
     )
 
 
-# ---------------------------------------------------------------------------
+
 # Public API functions
-# ---------------------------------------------------------------------------
+ 
 
 def get_email_explanation(risk_score: int, flags: List[str]) -> dict:
     """
