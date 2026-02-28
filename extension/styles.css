@@ -61,7 +61,7 @@
 body {
   width: 360px;
   min-height: 480px;
-  background: linear-gradient(180deg, #003d82 0%, #87ceeb 100%);
+  background: #00051B;
   color: #fff;
   font-family: var(--font-body);
   font-size: var(--font-size-base);
@@ -125,7 +125,7 @@ body {
 }
 
 .app-title {
-  font-size: var(--font-size-lg);
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.3px;
 }

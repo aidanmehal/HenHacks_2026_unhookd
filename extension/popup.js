@@ -173,12 +173,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (floatingStartBtn) {
     floatingStartBtn.addEventListener("click", () => {
       mainContent.style.display = "block";
+      floatingStartBtn.style.display = "none";
     });
   }
 
   if (stopBtn) {
     stopBtn.addEventListener("click", () => {
       mainContent.style.display = "none";
+      floatingStartBtn.style.display = "block";
     });
   }
 
