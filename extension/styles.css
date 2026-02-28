@@ -66,6 +66,8 @@ body {
   font-family: var(--font-body);
   font-size: var(--font-size-base);
   line-height: 1.5;
+  padding: 30px;
+  border: 2px solid black;
 }
 
 /* 
@@ -73,35 +75,36 @@ body {
  */
 
 .floating-start-btn {
-  position: fixed;
-  top: var(--space-md);
-  left: var(--space-md);
-  padding: 10px 16px;
-  background-color: #16a34a;
-  color: #fff;
-  border: 2px solid #16a34a;
-  border-radius: var(--radius-md);
-  font-family: var(--font-body);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  display: block;
+  margin: 30px auto 0;
+  padding: 17px 40px;
+  border-radius: 50px;
   cursor: pointer;
-  transition: all 0.3s;
-  z-index: 999;
-  backdrop-filter: blur(10px);
+  border: 0;
+  background-color: white;
+  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-size: 15px;
+  transition: all 0.5s ease;
+  font-family: var(--font-body);
+  font-weight: 600;
 }
 
 .floating-start-btn:hover {
-  background-color: #15803d;
-  border-color: #15803d;
-  transform: scale(1.05);
+  letter-spacing: 3px;
+  background-color: #00ebcc;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #00ebcc 0px 7px 29px 0px;
 }
 
 .floating-start-btn:active {
-  transform: scale(0.98);
-}
-
-.start-btn:active {
-  transform: scale(0.98);
+  letter-spacing: 3px;
+  background-color: #00ebcc;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #00ebcc 0px 0px 0px 0px;
+  transform: translateY(10px);
+  transition: 100ms;
 }
 
 /* 
@@ -116,12 +119,6 @@ body {
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
-  margin-top: 50px;
-  transition: margin-top 0.3s;
-}
-
-body.button-hidden .app-header {
-  margin-top: 0;
 }
 
 .logo-mark {
@@ -150,7 +147,7 @@ body.button-hidden .app-header {
   display: flex;
   border-bottom: 2px solid rgba(255, 255, 255, 0.2);
   background-color: transparent;
-  margin-top: 50px;
+  margin-top: 10px;
 }
 
 .tab-btn {
@@ -361,22 +358,32 @@ body.button-hidden .app-header {
 }
 
 .stop-btn {
-  padding: 8px 20px;
-  background-color: #dc2626;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 50px;
   cursor: pointer;
-  transition: all 0.3s;
+  border: 0;
+  background-color: white;
+  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-size: 12px;
+  transition: all 0.5s ease;
+  font-family: var(--font-body);
+  font-weight: 600;
 }
 
 .stop-btn:hover {
-  background-color: #b91c1c;
-  opacity: 0.9;
+  letter-spacing: 3px;
+  background-color: #dc2626;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #dc2626 0px 7px 29px 0px;
 }
 
 .stop-btn:active {
-  transform: scale(0.98);
+  letter-spacing: 3px;
+  background-color: #dc2626;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #dc2626 0px 0px 0px 0px;
+  transform: translateY(10px);
+  transition: 100ms;
 }
