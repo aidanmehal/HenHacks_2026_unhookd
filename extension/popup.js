@@ -158,7 +158,30 @@ function initTabs() {
 // Initialisation — runs when popup DOM is ready
 // 
 
+
+
+// 
+// Floating button handlers
+// 
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Handle floating Start button click
+  const floatingStartBtn = document.getElementById("floatingStartBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const mainContent = document.getElementById("mainContent");
+
+  if (floatingStartBtn) {
+    floatingStartBtn.addEventListener("click", () => {
+      mainContent.style.display = "block";
+    });
+  }
+
+  if (stopBtn) {
+    stopBtn.addEventListener("click", () => {
+      mainContent.style.display = "none";
+    });
+  }
+
   initTabs();
 
   // Read the latest cached results written by background.js

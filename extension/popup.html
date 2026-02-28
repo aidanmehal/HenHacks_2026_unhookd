@@ -8,9 +8,17 @@
 </head>
 <body>
 
-  <!--        Header
+  <!--        Floating Start button (top-left)
    -->
-  <header class="app-header">
+  <button class="floating-start-btn" id="floatingStartBtn">unhookd</button>
+
+  <!--        Main content (hidden initially)
+   -->
+  <div class="main-content" id="mainContent" style="display: none;">
+
+    <!--        Header
+     -->
+    <header class="app-header">
     <span class="logo-mark">&#x1F6E1;</span>
     <h1 class="app-title">unhookd</h1>
     <p class="app-tagline">Real-time security awareness</p>
@@ -121,7 +129,10 @@
    -->
   <footer class="app-footer">
     <p>No data is stored or shared. &copy; unhookd 2026</p>
+    <button class="stop-btn" id="stopBtn">Stop</button>
   </footer>
+
+  </div>
 
   <script src="popup.js"></script>
 </body>

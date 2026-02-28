@@ -61,11 +61,47 @@
 body {
   width: 360px;
   min-height: 480px;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  background: linear-gradient(180deg, #003d82 0%, #87ceeb 100%);
+  color: #fff;
   font-family: var(--font-body);
   font-size: var(--font-size-base);
   line-height: 1.5;
+}
+
+/* 
+   Floating Start button
+ */
+
+.floating-start-btn {
+  position: fixed;
+  top: var(--space-md);
+  left: var(--space-md);
+  padding: 10px 16px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 999;
+  backdrop-filter: blur(10px);
+}
+
+.floating-start-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.floating-start-btn:active {
+  transform: scale(0.98);
+}
+
+.start-btn:active {
+  transform: scale(0.98);
 }
 
 /* 
@@ -80,6 +116,7 @@ body {
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
+  margin-top: 50px;
 }
 
 .logo-mark {
@@ -106,8 +143,9 @@ body {
 
 .tab-bar {
   display: flex;
-  border-bottom: 2px solid var(--color-border);
-  background-color: var(--color-surface);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  background-color: transparent;
+  margin-top: 50px;
 }
 
 .tab-btn {
@@ -118,19 +156,19 @@ body {
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: color 0.15s, border-bottom-color 0.15s;
   border-bottom: 3px solid transparent;
-  margin-bottom: -2px;   /* Overlap the tab-bar bottom border */
+  margin-bottom: -2px;
 }
 
 .tab-btn:hover {
-  color: var(--color-accent);
+  color: #fff;
 }
 
 .tab-btn--active {
-  color: var(--color-accent);
+  color: #fff;
   border-bottom-color: var(--color-accent);
 }
 
@@ -162,7 +200,7 @@ body {
 .score-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   flex: 1;
@@ -172,7 +210,7 @@ body {
   font-size: var(--font-size-xl);
   font-weight: 800;
   line-height: 1;
-  color: var(--color-text);
+  color: #fff;
   transition: color 0.3s;
 }
 
@@ -185,7 +223,7 @@ body {
 
 .score-suffix {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: #fff;
 }
 
 /* 
@@ -226,7 +264,7 @@ body {
 .section-title {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -241,21 +279,21 @@ body {
 
 .flag-item {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #fff;
   padding: var(--space-xs) var(--space-sm);
-  background-color: var(--color-surface);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-high);
 }
 
 .flag-item--empty,
 .flag-item--clean {
-  color: var(--color-text-muted);
-  border-left-color: var(--color-border);
+  color: rgba(255, 255, 255, 0.7);
+  border-left-color: rgba(255, 255, 255, 0.3);
 }
 
 .flag-item--clean {
-  color: var(--color-low);
+  color: #fff;
   border-left-color: var(--color-low);
 }
 
@@ -264,37 +302,37 @@ body {
 .tip-text,
 .url-display {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #fff;
   line-height: 1.6;
-  background-color: var(--color-surface);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-sm);
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .url-display {
   word-break: break-all;
   font-family: monospace;
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Tip section — slightly different background to distinguish it visually */
 .section--tip {
-  background-color: #eef2ff;
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
   padding: var(--space-sm);
 }
 
 .section--tip .section-title {
-  color: var(--color-accent);
+  color: #fff;
 }
 
 .section--tip .tip-text {
   background: transparent;
   border: none;
   padding: 0;
-  color: #1e3a8a;
+  color: #fff;
 }
 
 /* 
@@ -303,11 +341,37 @@ body {
 
 .app-footer {
   padding: var(--space-sm) var(--space-lg);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
 }
 
 .app-footer p {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.stop-btn {
+  padding: 8px 20px;
+  background-color: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.stop-btn:hover {
+  background-color: #b91c1c;
+  opacity: 0.9;
+}
+
+.stop-btn:active {
+  transform: scale(0.98);
 }
