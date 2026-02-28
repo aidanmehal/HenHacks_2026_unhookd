@@ -77,9 +77,9 @@ body {
   top: var(--space-md);
   left: var(--space-md);
   padding: 10px 16px;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: #16a34a;
   color: #fff;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid #16a34a;
   border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
@@ -91,8 +91,8 @@ body {
 }
 
 .floating-start-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
+  background-color: #15803d;
+  border-color: #15803d;
   transform: scale(1.05);
 }
 
@@ -117,6 +117,11 @@ body {
   gap: var(--space-sm);
   flex-wrap: wrap;
   margin-top: 50px;
+  transition: margin-top 0.3s;
+}
+
+body.button-hidden .app-header {
+  margin-top: 0;
 }
 
 .logo-mark {

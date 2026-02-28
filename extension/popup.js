@@ -174,6 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
     floatingStartBtn.addEventListener("click", () => {
       mainContent.style.display = "block";
       floatingStartBtn.style.display = "none";
+      document.body.classList.add("button-hidden");
     });
   }
 
@@ -181,6 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stopBtn.addEventListener("click", () => {
       mainContent.style.display = "none";
       floatingStartBtn.style.display = "block";
+      document.body.classList.remove("button-hidden");
     });
   }
 
