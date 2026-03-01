@@ -282,19 +282,34 @@ function renderStoredResults(stored) {
 //
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Handle toggle button — opens the sidebar
+  // Handle toggle button — toggles the sidebar
   const toggleBtn = document.getElementById("toggleBtn");
+  let sidebarOpen = false;
 
   if (toggleBtn) {
     toggleBtn.addEventListener("click", async () => {
       try {
-        // Open the sidebar panel
         const tab = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab[0]) {
-          await chrome.sidePanel.open({ tabId: tab[0].id });
+          sidebarOpen = !sidebarOpen;
+          
+          if (sidebarOpen) {
+            // Open the sidebar panel
+            await chrome.sidePanel.open({ tabId: tab[0].id });
+            toggleBtn.textContent = "STOP";
+            toggleBtn.classList.add("stop-state");
+          } else {
+            // Close the sidebar panel by disabling it
+            await chrome.sidePanel.setOptions({
+              tabId: tab[0].id,
+              enabled: false
+            });
+            toggleBtn.textContent = "GO PHISH";
+            toggleBtn.classList.remove("stop-state");
+          }
         }
       } catch (err) {
-        console.error("[unhookd] Error opening sidebar:", err);
+        console.error("[unhookd] Error toggling sidebar:", err);
       }
     });
   }
