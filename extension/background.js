@@ -57,6 +57,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "closeSidebar") {
+    // Handle sidebar close request
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.sidePanel.setOptions({ tabId: tabs[0].id, path: "" }, () => {
+          if (chrome.runtime.lastError) {
+            console.error("[unhookd] Error closing sidebar:", chrome.runtime.lastError);
+          }
+          sendResponse({ success: true });
+        });
+      }
+    });
+    return true;
+  }
+
   // Unknown message type — ignore silently
   return false;
 });

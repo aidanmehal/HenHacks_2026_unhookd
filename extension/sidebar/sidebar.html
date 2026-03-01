@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>unhookd - Sidebar</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    /* Sidebar-specific overrides */
+    body {
+      width: 100% !important;
+      height: 100% !important;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #mainContent {
+      flex: 1;
+      overflow-y: auto;
+      transform: none !important;
+    }
+    
+    #mainContent.collapsed {
+      transform: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!--        Header
+   -->
+  <header class="app-FullLogoheader">
+    <img src="../images/FullLogo.svg" alt="" class="logo-img" />
+  </header>
+
+  <!--        Main content
+   -->
+  <div class="main-content" id="mainContent">
+
+  <!--        Tab bar — switch between Email and Link results
+   -->
+  <nav class="tab-bar" role="tablist">
+    <button
+      class="tab-btn tab-btn--active"
+      id="tab-email"
+      role="tab"
+      aria-selected="true"
+      aria-controls="panel-email"
+    >Email</button>
+    <button
+      class="tab-btn"
+      id="tab-link"
+      role="tab"
+      aria-selected="false"
+      aria-controls="panel-link"
+    >Link</button>
+  </nav>
+
+  <!--        Email analysis panel
+   -->
+  <section id="panel-email" class="result-panel" role="tabpanel" aria-labelledby="tab-email">
+
+    <!-- Severity -->
+    <div class="score-row">
+      <span class="score-label">Severity</span>
+      <span class="severity-value severity--unknown" id="email-severity">Waiting</span>
+    </div>
+
+    <!-- Risk level badge -->
+    <div class="badge-row">
+      <span class="risk-badge" id="email-badge">Scanning...</span>
+    </div>
+
+    <!-- Detected flags -->
+    <div class="section">
+      <h2 class="section-title">Detected Issues</h2>
+      <ul class="flag-list" id="email-flags">
+        <li class="flag-item flag-item--empty">No scan results yet</li>
+      </ul>
+    </div>
+
+    <!-- AI explanation -->
+    <div class="section">
+      <h2 class="section-title">What This Means</h2>
+      <p class="explanation-text" id="email-explanation">
+        Waiting for analysis...
+      </p>
+    </div>
+
+    <!-- Educational tip -->
+    <div class="section section--tip">
+      <h2 class="section-title">&#x1F4A1; Stay Safer</h2>
+      <p class="tip-text" id="email-tip">
+        Tip will appear after scan.
+      </p>
+    </div>
+
+  </section>
+
+  <!--        Link analysis panel (hidden by default)
+   -->
+  <section id="panel-link" class="result-panel result-panel--hidden" role="tabpanel" aria-labelledby="tab-link">
+
+    <!-- Scanned URL display -->
+    <div class="section">
+      <h2 class="section-title">Scanned URL</h2>
+      <p class="url-display" id="link-url">Hover over a link to scan it</p>
+    </div>
+
+    <!-- Severity -->
+    <div class="score-row">
+      <span class="score-label">Severity</span>
+      <span class="severity-value severity--unknown" id="link-severity">Waiting</span>
+    </div>
+
+    <!-- Risk level badge -->
+    <div class="badge-row">
+      <span class="risk-badge" id="link-badge">No scan yet</span>
+    </div>
+
+    <!-- Detected flags -->
+    <div class="section">
+      <h2 class="section-title">Detected Issues</h2>
+      <ul class="flag-list" id="link-flags">
+        <li class="flag-item flag-item--empty">No scan results yet</li>
+      </ul>
+    </div>
+
+    <!-- AI explanation -->
+    <div class="section">
+      <h2 class="section-title">What This Means</h2>
+      <p class="explanation-text" id="link-explanation">
+        Waiting for analysis...
+      </p>
+    </div>
+
+  </section>
+
+  <!--Footer-->
+  <footer class="app-footer">
+    <p>No data is stored or shared. &copy; unhookd 2026</p>
+  </footer>
+
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>

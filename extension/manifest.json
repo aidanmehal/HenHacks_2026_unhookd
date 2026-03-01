@@ -7,7 +7,8 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "sidePanel"
   ],
 
   "host_permissions": [
@@ -21,6 +22,10 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "unhookd — Security Scanner"
+  },
+
+  "side_panel": {
+    "default_path": "sidebar/sidebar.html"
   },
 
   "content_scripts": [

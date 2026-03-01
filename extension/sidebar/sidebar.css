@@ -1,0 +1,304 @@
+/*
+ * sidebar.css — Sidebar UI styles for the unhookd Chrome extension.
+ *
+ * Matches the design tokens and aesthetic from the main popup styles.css:
+ *   - Dark theme with accent colors
+ *   - Minimal, security-oriented aesthetic
+ *   - Clear information hierarchy
+ *   - Accessible contrast ratios
+ */
+
+/* Design tokens (matching popup styles) */
+:root {
+  --color-bg: #00051b;
+  --color-surface: #0a0f2c;
+  --color-border: #1a1f3a;
+  --color-text: #ffffff;
+  --color-text-muted: #b0b8cc;
+  --color-accent: #2563eb; /* Blue — primary brand colour */
+  --color-accent-hover: #00ebcc; /* Cyan — hover state */
+
+  /* Risk level colours */
+  --color-low: #16a34a; /* Green */
+  --color-medium: #d97706; /* Amber */
+  --color-high: #dc2626; /* Red */
+  --color-critical: #7f1d1d; /* Dark red */
+  --color-unknown: #6b7280; /* Grey */
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 18px;
+  --font-size-xl: 32px;
+}
+
+/* Reset / base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* Sidebar container */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg);
+}
+
+/* Header */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-lg);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #1a2456 0%, #0a0f2c 100%);
+}
+
+.sidebar-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-close-btn:hover {
+  color: var(--color-accent-hover);
+  background: rgba(0, 235, 204, 0.1);
+}
+
+.sidebar-close-btn:active {
+  transform: scale(0.95);
+}
+
+/* Main content area */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* Scrollbar styling */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Section styling */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-text {
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Features list */
+.features-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-md);
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.feature-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--color-accent-hover);
+  transform: translateX(4px);
+}
+
+.feature-icon {
+  font-size: var(--font-size-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-text {
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* Steps list */
+.steps-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  counter-reset: step-counter;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(37, 99, 235, 0.1);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: var(--color-accent);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+.step-text {
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+}
+
+/* Tips list */
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.tip-item {
+  padding: var(--space-md);
+  background: rgba(220, 38, 38, 0.05);
+  border-left: 3px solid var(--color-high);
+  border-radius: var(--radius-md);
+}
+
+.tip-item p {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.tip-item strong {
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+
+/* Footer */
+.sidebar-footer {
+  padding: var(--space-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #0a0f2c 0%, #050a1a 100%);
+  text-align: center;
+}
+
+.sidebar-footer p {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Responsive - for different window sizes */
+@media (max-height: 600px) {
+  .sidebar-content {
+    padding: var(--space-md);
+  }
+
+  .sidebar-header {
+    padding: var(--space-md);
+  }
+
+  .section-title {
+    font-size: var(--font-size-base);
+  }
+}
