@@ -25,6 +25,8 @@
 
 /** Base URL of the unhookd FastAPI backend. Change for production. */
 const API_BASE_URL = "http://localhost:8000";
+const pendingEmailRequests = new Map();
+const pendingLinkRequests = new Map();
 
 
 function buildFallbackResult(kind, error, context = {}) {
@@ -50,6 +52,58 @@ function buildFallbackResult(kind, error, context = {}) {
 }
 
 
+function buildPendingResult(kind) {
+  if (kind === "email") {
+    return {
+      status: "pending",
+      flags: [],
+      ai_explanation: "Analyzing... Live AI analysis can take up to 30 seconds.",
+      education_tip: "Please wait while the live model completes the scan.",
+    };
+  }
+
+  return {
+    status: "pending",
+    flags: [],
+    ai_explanation: "Analyzing... Live AI analysis can take up to 30 seconds.",
+  };
+}
+
+
+function buildErrorResult(kind, error) {
+  const message = error instanceof Error ? error.message : String(error || "Unknown error");
+  if (kind === "email") {
+    return {
+      status: "error",
+      flags: [],
+      ai_explanation: `Live email analysis failed: ${message}`,
+      education_tip: "Check the backend and Gemini configuration, then try again.",
+    };
+  }
+
+  return {
+    status: "error",
+    flags: [],
+    ai_explanation: `Live link analysis failed: ${message}`,
+  };
+}
+
+
+function normalizeEmailPayload({ sender = "", subject = "", body = "", links = [] }) {
+  return JSON.stringify({
+    sender: sender.trim().toLowerCase(),
+    subject: subject.trim(),
+    body: body.trim().slice(0, 1500),
+    links: [...links].map(link => String(link).trim()).sort(),
+  });
+}
+
+
+function normalizeLinkPayload({ url = "" }) {
+  return String(url).trim();
+}
+
+
 // 
 // Message handler — listens to messages from content.js
 // 
@@ -67,17 +121,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
    */
 
   if (message.type === "ANALYZE_EMAIL") {
-    handleEmailAnalysis(message.payload)
-      .then(result => sendResponse({ success: true, data: result }))
-      .catch(err  => sendResponse({ success: false, error: err.message }));
-    return true; // Keep channel open for async response
+    handleEmailAnalysis(message.payload).catch(err => {
+      console.warn("[unhookd] Email analysis failed:", err?.message || err);
+    });
+    return false;
   }
 
   if (message.type === "ANALYZE_LINK") {
-    handleLinkAnalysis(message.payload)
-      .then(result => sendResponse({ success: true, data: result }))
-      .catch(err  => sendResponse({ success: false, error: err.message }));
-    return true;
+    handleLinkAnalysis(message.payload).catch(err => {
+      console.warn("[unhookd] Link analysis failed:", err?.message || err);
+    });
+    return false;
   }
 
   if (message.action === "closeSidebar") {
@@ -126,7 +180,16 @@ async function fetchWithRetry(url, options = {}, { timeout = 5000, retries = 1 }
       const combined = { ...options, signal: controller.signal };
       const res = await fetch(url, combined);
       clearTimeout(id);
-      if (!res.ok) throw new Error(`Backend error: ${res.status} ${res.statusText}`);
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail = body?.detail ? ` - ${body.detail}` : "";
+        } catch (parseError) {
+          detail = "";
+        }
+        throw new Error(`Backend error: ${res.status} ${res.statusText}${detail}`);
+      }
       return await res.json();
     } catch (err) {
       clearTimeout(id);
@@ -142,16 +205,35 @@ async function fetchWithRetry(url, options = {}, { timeout = 5000, retries = 1 }
 }
 
 async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
-  let result;
+  const cacheKey = normalizeEmailPayload({ sender, subject, body, links });
+  const pending = pendingEmailRequests.get(cacheKey);
+  if (pending) {
+    const result = await pending;
+    await chrome.storage.local.set({ latestEmailResult: result });
+    return result;
+  }
 
-  try {
-    result = await fetchWithRetry(`${API_BASE_URL}/analyze/email`, {
+  await chrome.storage.local.set({ latestEmailResult: buildPendingResult("email") });
+
+  let result;
+  const requestPromise = (async () => {
+    return await fetchWithRetry(`${API_BASE_URL}/analyze/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sender, subject, body, links }),
-    }, { timeout: 7000, retries: 1 });
+    }, { timeout: 30000, retries: 1 });
+  })();
+
+  pendingEmailRequests.set(cacheKey, requestPromise);
+
+  try {
+    result = await requestPromise;
   } catch (error) {
-    result = buildFallbackResult("email", error);
+    const errorResult = buildErrorResult("email", error);
+    await chrome.storage.local.set({ latestEmailResult: errorResult });
+    throw error;
+  } finally {
+    pendingEmailRequests.delete(cacheKey);
   }
 
   await chrome.storage.local.set({ latestEmailResult: result });
@@ -168,16 +250,44 @@ async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
  */
 
 async function _doHandleLinkAnalysis({ url }) {
-  let result;
+  const cacheKey = normalizeLinkPayload({ url });
+  const pending = pendingLinkRequests.get(cacheKey);
+  if (pending) {
+    const result = await pending;
+    await chrome.storage.local.set({
+      latestLinkResult: result,
+      latestLinkUrl: url,
+    });
+    return result;
+  }
 
-  try {
-    result = await fetchWithRetry(`${API_BASE_URL}/analyze/link`, {
+  await chrome.storage.local.set({
+    latestLinkResult: buildPendingResult("link"),
+    latestLinkUrl: url,
+  });
+
+  let result;
+  const requestPromise = (async () => {
+    return await fetchWithRetry(`${API_BASE_URL}/analyze/link`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
-    }, { timeout: 5000, retries: 1 });
+    }, { timeout: 25000, retries: 1 });
+  })();
+
+  pendingLinkRequests.set(cacheKey, requestPromise);
+
+  try {
+    result = await requestPromise;
   } catch (error) {
-    result = buildFallbackResult("link", error);
+    const errorResult = buildErrorResult("link", error);
+    await chrome.storage.local.set({
+      latestLinkResult: errorResult,
+      latestLinkUrl: url,
+    });
+    throw error;
+  } finally {
+    pendingLinkRequests.delete(cacheKey);
   }
 
   await chrome.storage.local.set({

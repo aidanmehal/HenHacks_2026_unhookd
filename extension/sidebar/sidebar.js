@@ -82,6 +82,30 @@ function renderPanel({ severityId, badgeId, flagsId, explanationId, tipId = null
     return;
   }
 
+  if (data.status === "pending") {
+    severityEl.textContent    = "Analyzing";
+    severityEl.className      = "severity-value severity--unknown";
+    badgeEl.textContent       = "Analyzing...";
+    badgeEl.className         = "risk-badge badge--unknown";
+    flagsEl.innerHTML         = '<li class="flag-item flag-item--empty">Live analysis in progress</li>';
+    if (explanationEl) explanationEl.textContent = data.ai_explanation ?? "Analyzing...";
+    if (tipEl)         tipEl.textContent         = data.education_tip ?? "Waiting for a live AI response.";
+    if (urlEl)         urlEl.textContent         = urlValue ?? "Analyzing current page";
+    return;
+  }
+
+  if (data.status === "error") {
+    severityEl.textContent    = "Error";
+    severityEl.className      = "severity-value severity--unknown";
+    badgeEl.textContent       = "Live Scan Failed";
+    badgeEl.className         = "risk-badge badge--unknown";
+    flagsEl.innerHTML         = '<li class="flag-item flag-item--empty">No live result available</li>';
+    if (explanationEl) explanationEl.textContent = data.ai_explanation ?? "Live analysis failed.";
+    if (tipEl)         tipEl.textContent         = data.education_tip ?? "Check the backend and try again.";
+    if (urlEl)         urlEl.textContent         = urlValue ?? "Recently scanned link unavailable.";
+    return;
+  }
+
   const severity = (data.severity || "unknown").toLowerCase();
   const { label, cssClass } = getSeverityMeta(severity);
   severityEl.textContent = severity.charAt(0).toUpperCase() + severity.slice(1);
@@ -282,18 +306,29 @@ async function primeAnalysis() {
       return;
     }
 
-    if (typeof activeTab.url === "string" && activeTab.url.startsWith("http")) {
-      chrome.runtime.sendMessage({
-        type: "ANALYZE_LINK",
-        payload: { url: activeTab.url },
-      });
-    }
+    const requestScan = () => new Promise((resolve) => {
+      chrome.tabs.sendMessage(activeTab.id, { type: "UNHOOKD_SCAN_PAGE" }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ok: false, error: chrome.runtime.lastError.message });
+          return;
+        }
 
-    chrome.tabs.sendMessage(activeTab.id, { type: "UNHOOKD_SCAN_PAGE" }, () => {
-      if (chrome.runtime.lastError) {
-        console.debug("[unhookd] Unable to trigger page scan:", chrome.runtime.lastError.message);
-      }
+        resolve({ ok: true, response });
+      });
     });
+
+    let result = await requestScan();
+    if (!result.ok) {
+      console.debug("[unhookd] No content script detected, injecting into active tab:", result.error);
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        files: ["content.js"],
+      });
+      result = await requestScan();
+      if (!result.ok) {
+        console.debug("[unhookd] Unable to trigger page scan after injection:", result.error);
+      }
+    }
   } catch (err) {
     console.warn("[unhookd] Failed to prime analysis:", err);
   }

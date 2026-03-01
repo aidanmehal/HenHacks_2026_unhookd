@@ -15,7 +15,7 @@ Each handler follows the same pipeline:
 No user data is stored at any point in this pipeline.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from backend.models.schemas import (
     EmailAnalysisRequest,
     EmailAnalysisResponse,
@@ -96,13 +96,16 @@ async def analyze_email_endpoint(request: EmailAnalysisRequest) -> EmailAnalysis
         links=request.links,
     )
     prompt_guidelines = [FLAG_DISPLAY_LABELS.get(flag, flag.replace("_", " ").title()) for flag in guideline_flags]
-    ai_result = analyze_email_with_ai(
-        sender=request.sender,
-        subject=request.subject,
-        body=request.body,
-        links=request.links,
-        guideline_flags=prompt_guidelines,
-    )
+    try:
+        ai_result = analyze_email_with_ai(
+            sender=request.sender,
+            subject=request.subject,
+            body=request.body,
+            links=request.links,
+            guideline_flags=prompt_guidelines,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return EmailAnalysisResponse(
         severity=ai_result["severity"],
@@ -140,7 +143,10 @@ async def analyze_link_endpoint(request: LinkAnalysisRequest) -> LinkAnalysisRes
     # Step 1: Run heuristic checks → get list of flag identifiers
     guideline_flags = analyze_link(url=str(request.url))
     prompt_guidelines = [FLAG_DISPLAY_LABELS.get(flag, flag.replace("_", " ").title()) for flag in guideline_flags]
-    ai_result = analyze_link_with_ai(url=str(request.url), guideline_flags=prompt_guidelines)
+    try:
+        ai_result = analyze_link_with_ai(url=str(request.url), guideline_flags=prompt_guidelines)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return LinkAnalysisResponse(
         severity=ai_result["severity"],
@@ -161,12 +167,15 @@ async def analyze_download_endpoint(request: DownloadAnalysisRequest) -> Downloa
     """
     guideline_flags = analyze_download(url=str(request.url), filename=request.filename, content_type=request.content_type)
     prompt_guidelines = [FLAG_DISPLAY_LABELS.get(flag, flag.replace("_", " ").title()) for flag in guideline_flags]
-    ai_result = analyze_download_with_ai(
-        url=str(request.url),
-        filename=request.filename,
-        content_type=request.content_type,
-        guideline_flags=prompt_guidelines,
-    )
+    try:
+        ai_result = analyze_download_with_ai(
+            url=str(request.url),
+            filename=request.filename,
+            content_type=request.content_type,
+            guideline_flags=prompt_guidelines,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return DownloadAnalysisResponse(
         severity=ai_result["severity"],

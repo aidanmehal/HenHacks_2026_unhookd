@@ -14,6 +14,7 @@ from functools import lru_cache
 import logging
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 try:
     from dotenv import load_dotenv
@@ -35,6 +36,7 @@ logger = logging.getLogger("unhookd.ai.gemini")
 # Initialise client if API key available; otherwise run in offline stub mode
 _GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 _GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+_GEMINI_TIMEOUT_SECONDS = float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "20"))
 if _GEMINI_KEY and genai is not None:
     try:
         client = genai.Client(api_key=_GEMINI_KEY)
@@ -47,6 +49,8 @@ elif _GEMINI_KEY and genai is None:
 else:
     logger.warning("GEMINI_API_KEY not set — running with AI stubs")
     client = None
+
+_MODEL_EXECUTOR = ThreadPoolExecutor(max_workers=4)
 
 # Prompt builders
 
@@ -236,13 +240,16 @@ def _infer_fallback_severity(default_flags: List[str]) -> str:
 
 def _offline_decision(default_flags: List[str], include_tip: bool) -> dict:
     severity = _infer_fallback_severity(default_flags)
+    if default_flags:
+        joined_flags = ", ".join(default_flags[:3])
+        explanation = f"This result is based on local phishing checks. Detected signals include {joined_flags}."
+    else:
+        explanation = "This result is based on local phishing checks and no major risk signals were detected."
+
     result = {
         "severity": severity,
         "flags": default_flags or ["AI review unavailable"],
-        "ai_explanation": (
-            "Gemini is unavailable, so this response uses heuristic fallback "
-            "guidance instead of a live model judgment."
-        ),
+        "ai_explanation": explanation,
     }
     if include_tip:
         result["education_tip"] = "Verify unusual messages, links, and downloads through a trusted channel before interacting."
@@ -253,10 +260,11 @@ def _run_ai_decision(prompt: str, guideline_flags: List[str], include_tip: bool)
     flags_key = _cache_key(guideline_flags)
     try:
         if client is None:
-            raise RuntimeError("Gemini client not configured")
+            raise RuntimeError("Gemini is unavailable for live analysis")
 
         model = _GEMINI_MODEL
-        text = _generate_from_model_cached(model, prompt, flags_key)
+        future = _MODEL_EXECUTOR.submit(_generate_from_model_cached, model, prompt, flags_key)
+        text = future.result(timeout=_GEMINI_TIMEOUT_SECONDS)
         payload = _extract_json_payload(text)
 
         result = {
@@ -267,9 +275,14 @@ def _run_ai_decision(prompt: str, guideline_flags: List[str], include_tip: bool)
         if include_tip:
             result["education_tip"] = str(payload.get("education_tip", "")).strip() or "Use caution and verify through a trusted channel."
         return result
+    except FutureTimeoutError:
+        logger.warning("Gemini decision generation exceeded %.1fs", _GEMINI_TIMEOUT_SECONDS)
+        raise RuntimeError(f"Gemini took longer than {_GEMINI_TIMEOUT_SECONDS:.1f}s")
     except Exception as e:
         logger.exception("Gemini decision generation failed: %s", e)
-        return _offline_decision(guideline_flags, include_tip)
+        if isinstance(e, RuntimeError):
+            raise
+        raise RuntimeError("Gemini live analysis failed") from e
 
 
 def analyze_email_with_ai(

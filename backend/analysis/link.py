@@ -38,6 +38,8 @@ URL_SHORTENERS: List[str] = [
     "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd",
 ]
 
+BRAND_TOKENS = ["paypal", "microsoft", "google", "apple", "amazon", "bank", "secure", "login"]
+
 
 # ---------------------------------------------------------------------------
 # Individual heuristic checks
@@ -202,6 +204,29 @@ def check_subdomain_depth(url: str) -> List[str]:
     return flags
 
 
+def check_deceptive_structure(url: str) -> List[str]:
+    """
+    Flag URLs that are structurally deceptive even if the raw domain is not
+    on a denylist.
+    """
+    flags: List[str] = []
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    registered = ".".join(hostname.split(".")[-2:]) if hostname else ""
+
+    if "@" in (parsed.netloc or ""):
+        flags.append("link_domain_mismatch")
+
+    subdomain_only = hostname[:-len(registered)].rstrip(".") if registered and hostname.endswith(registered) else hostname
+    if any(token in subdomain_only for token in BRAND_TOKENS) and not any(token in registered for token in BRAND_TOKENS):
+        flags.append("link_domain_mismatch")
+
+    if len(url) > 120 and re.search(r"(login|verify|account|secure)", url.lower()):
+        flags.append("link_domain_mismatch")
+
+    return flags
+
+
 def check_file_extension(url: str) -> List[str]:
     """
     Detect links pointing directly at potentially dangerous file types.
@@ -259,6 +284,7 @@ def analyze_link(url: str) -> List[str]:
     all_flags.extend(check_ip_address_url(url))
     all_flags.extend(check_url_shortener(url))
     all_flags.extend(check_subdomain_depth(url))
+    all_flags.extend(check_deceptive_structure(url))
     all_flags.extend(check_file_extension(url))
 
     # Deduplicate while preserving insertion order

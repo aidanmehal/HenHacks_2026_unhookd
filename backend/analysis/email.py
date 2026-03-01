@@ -14,6 +14,31 @@ Design principles:
 
 import re
 from typing import List
+from urllib.parse import urlparse
+
+
+FREE_EMAIL_PROVIDERS = {"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"}
+BRAND_KEYWORDS = {
+    "paypal": ("paypal", "paypa1", "paypol"),
+    "microsoft": ("microsoft", "micros0ft", "rnicrosoft"),
+    "google": ("google", "goog1e", "g00gle"),
+    "apple": ("apple", "app1e"),
+    "amazon": ("amazon", "amaz0n"),
+    "bank": ("bank",),
+}
+
+
+def _extract_domain(address: str) -> str:
+    if "@" not in address:
+        return ""
+    return address.rsplit("@", 1)[-1].strip().lower()
+
+
+def _registered_domain(hostname: str) -> str:
+    labels = [label for label in hostname.split(".") if label]
+    if len(labels) >= 2:
+        return ".".join(labels[-2:])
+    return hostname
 
 
 
@@ -38,17 +63,24 @@ def check_sender_domain(sender: str) -> List[str]:
     """
     flags: List[str] = []
 
-    # TODO: Parse the domain portion from the sender address
-    # TODO: Compare against a list of known free-email providers
-    # TODO: Run lookalike-domain check (Levenshtein / regex patterns)
-    # TODO: Flag if the display name mentions a brand but the domain does not
+    domain = _extract_domain(sender)
+    if not domain:
+        return flags
 
-    # --- PLACEHOLDER LOGIC (remove once real checks are added) ---
-    if "@" in sender:
-        domain = sender.split("@")[-1].lower()
-        if any(free in domain for free in ["gmail", "yahoo", "hotmail", "outlook"]):
+    if domain in FREE_EMAIL_PROVIDERS:
+        flags.append("free_email_provider_sender")
+
+    if any(char.isdigit() for char in domain) or domain.count("-") >= 2:
+        flags.append("suspicious_sender_domain")
+
+    for canonical, variants in BRAND_KEYWORDS.items():
+        if any(variant in domain for variant in variants) and canonical not in domain:
+            flags.append("domain_spoofing")
+            break
+
+    if any(part in domain for part in ("secure", "verify", "update", "login")) and domain in FREE_EMAIL_PROVIDERS:
+        if "free_email_provider_sender" not in flags:
             flags.append("free_email_provider_sender")
-    # --- END PLACEHOLDER ---
 
     return flags
 
@@ -71,6 +103,9 @@ def check_subject_urgency(subject: str) -> List[str]:
         r"\burgent\b",
         r"\bimmediately\b",
         r"\baction required\b",
+        r"\bact now\b",
+        r"\bfinal notice\b",
+        r"\bsecurity alert\b",
         r"\baccount (suspended|locked|compromised)\b",
         r"\bverify (your|account)\b",
         r"\bconfirm (your|account)\b",
@@ -106,17 +141,36 @@ def check_body_content(body: str) -> List[str]:
 
     # TODO: Replace simple substring checks with regex + NLP intent detection
 
-    # --- Password request detection (stubbed) ---
-    if any(phrase in body_lower for phrase in ["enter your password", "confirm your password", "reset password"]):
+    password_patterns = [
+        "enter your password",
+        "confirm your password",
+        "reset password",
+        "verify your password",
+        "log in to keep your account active",
+        "sign in to avoid suspension",
+    ]
+    if any(phrase in body_lower for phrase in password_patterns):
         flags.append("password_request")
 
-    # --- Financial request detection (stubbed) ---
-    if any(phrase in body_lower for phrase in ["wire transfer", "send money", "gift card", "bank account"]):
+    financial_patterns = [
+        "wire transfer",
+        "send money",
+        "gift card",
+        "bank account",
+        "invoice attached",
+        "payment overdue",
+        "outstanding balance",
+        "crypto wallet",
+    ]
+    if any(phrase in body_lower for phrase in financial_patterns):
         flags.append("financial_request")
 
     # --- Excessive exclamation marks ---
     if body.count("!") > 5:
         flags.append("many_exclamation_marks")
+
+    if "click the link below" in body_lower or "use the secure link" in body_lower:
+        flags.append("contains_suspicious_links")
 
     # TODO: Parse HTML body to detect link-text / href mismatches
     # TODO: Detect base64-encoded or obfuscated content
@@ -124,7 +178,7 @@ def check_body_content(body: str) -> List[str]:
     return flags
 
 
-def check_links_in_email(links: List[str]) -> List[str]:
+def check_links_in_email(sender: str, links: List[str]) -> List[str]:
     """
     Quick-scan links extracted from the email for obvious red flags.
     Deep link analysis is deferred to /analyze/link.
@@ -136,16 +190,20 @@ def check_links_in_email(links: List[str]) -> List[str]:
         List of flag identifier strings.
     """
     flags: List[str] = []
-
-    # TODO: Detect link domain mismatches vs sender domain
-    # TODO: Flag IP-address URLs (e.g. http://192.168.1.1/login)
-    # TODO: Detect URL shorteners that obscure the real destination
+    sender_domain = _registered_domain(_extract_domain(sender))
 
     if links:
-        # Placeholder: flag if any link lacks HTTPS as a simple signal
         for link in links:
-            if link.startswith("http://"):
+            parsed = urlparse(link)
+            hostname = (parsed.hostname or "").lower()
+            if link.startswith("http://") or any(short in hostname for short in ("bit.ly", "tinyurl.com", "t.co")):
                 flags.append("contains_suspicious_links")
+            if sender_domain and hostname and _registered_domain(hostname) != sender_domain:
+                flags.append("link_domain_mismatch")
+            if "@" in parsed.netloc:
+                flags.append("link_domain_mismatch")
+            if flags:
+                # these are coarse indicators; once present, stop scanning
                 break
 
     return flags
@@ -176,7 +234,7 @@ def analyze_email(sender: str, subject: str, body: str, links: List[str]) -> Lis
     all_flags.extend(check_sender_domain(sender))
     all_flags.extend(check_subject_urgency(subject))
     all_flags.extend(check_body_content(body))
-    all_flags.extend(check_links_in_email(links))
+    all_flags.extend(check_links_in_email(sender, links))
 
     # Deduplicate while preserving insertion order
     seen = set()
