@@ -12,9 +12,9 @@
  * TODO: Add subtle entrance animations for results appearing.
  */
 
-/* ---------------------------------------------------------------------------
+/* 
    Design tokens
---------------------------------------------------------------------------- */
+ */
 
 :root {
   --color-bg:          #f8f9fb;
@@ -48,9 +48,9 @@
   --font-size-xl:      32px;
 }
 
-/* ---------------------------------------------------------------------------
+/* 
    Reset / base
---------------------------------------------------------------------------- */
+ */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -61,16 +61,55 @@
 body {
   width: 360px;
   min-height: 480px;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  background: #00051B;
+  color: #fff;
   font-family: var(--font-body);
   font-size: var(--font-size-base);
   line-height: 1.5;
+  padding: 10px 30px 30px 30px;
+  border: 2px solid black;
 }
 
-/* ---------------------------------------------------------------------------
+/* 
+   Floating Start button
+ */
+
+.floating-start-btn {
+  display: block;
+  margin: 10px auto 0;
+  padding: 17px 40px;
+  border-radius: 50px;
+  cursor: pointer;
+  border: 0;
+  background-color: white;
+  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-size: 15px;
+  transition: all 0.5s ease;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.floating-start-btn:hover {
+  letter-spacing: 3px;
+  background-color: #00ebcc;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #00ebcc 0px 7px 29px 0px;
+}
+
+.floating-start-btn:active {
+  letter-spacing: 3px;
+  background-color: #00ebcc;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #00ebcc 0px 0px 0px 0px;
+  transform: translateY(10px);
+  transition: 100ms;
+}
+
+/* 
    Header
---------------------------------------------------------------------------- */
+ */
 
 .app-header {
   background-color: var(--color-accent);
@@ -78,36 +117,38 @@ body {
   padding: var(--space-md) var(--space-lg);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
 }
 
+.logo-img {
+  height: 70px;
+  width: auto;
+  object-fit: contain;
+}
+
 .logo-mark {
-  font-size: var(--font-size-lg);
-  line-height: 1;
+  display: none;
 }
 
 .app-title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  letter-spacing: -0.3px;
+  display: none;
 }
 
 .app-tagline {
-  width: 100%;
-  font-size: var(--font-size-xs);
-  opacity: 0.85;
-  margin-top: -4px;
+  display: none;
 }
 
-/* ---------------------------------------------------------------------------
+/* 
    Tab bar
---------------------------------------------------------------------------- */
+ */
 
 .tab-bar {
   display: flex;
-  border-bottom: 2px solid var(--color-border);
-  background-color: var(--color-surface);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  background-color: transparent;
+  margin-top: 10px;
 }
 
 .tab-btn {
@@ -118,25 +159,25 @@ body {
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: color 0.15s, border-bottom-color 0.15s;
   border-bottom: 3px solid transparent;
-  margin-bottom: -2px;   /* Overlap the tab-bar bottom border */
+  margin-bottom: -2px;
 }
 
 .tab-btn:hover {
-  color: var(--color-accent);
+  color: #fff;
 }
 
 .tab-btn--active {
-  color: var(--color-accent);
+  color: #fff;
   border-bottom-color: var(--color-accent);
 }
 
-/* ---------------------------------------------------------------------------
+/* 
    Result panels
---------------------------------------------------------------------------- */
+ */
 
 .result-panel {
   padding: var(--space-md) var(--space-lg);
@@ -149,9 +190,9 @@ body {
   display: none;
 }
 
-/* ---------------------------------------------------------------------------
+/* 
    Score display
---------------------------------------------------------------------------- */
+ */
 
 .score-row {
   display: flex;
@@ -162,7 +203,7 @@ body {
 .score-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   flex: 1;
@@ -173,7 +214,6 @@ body {
   font-weight: 800;
   line-height: 1;
   color: var(--color-text);
-  text-transform: capitalize;
   transition: color 0.3s;
 }
 
@@ -185,12 +225,12 @@ body {
 
 .score-suffix {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: #fff;
 }
 
-/* ---------------------------------------------------------------------------
+/* 
    Risk badge
---------------------------------------------------------------------------- */
+ */
 
 .badge-row {
   display: flex;
@@ -213,9 +253,9 @@ body {
 .badge--critical { background-color: var(--color-critical); }
 .badge--unknown  { background-color: var(--color-unknown);  }
 
-/* ---------------------------------------------------------------------------
+/* 
    Content sections
---------------------------------------------------------------------------- */
+ */
 
 .section {
   display: flex;
@@ -226,7 +266,7 @@ body {
 .section-title {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -241,21 +281,21 @@ body {
 
 .flag-item {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #fff;
   padding: var(--space-xs) var(--space-sm);
-  background-color: var(--color-surface);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-high);
 }
 
 .flag-item--empty,
 .flag-item--clean {
-  color: var(--color-text-muted);
-  border-left-color: var(--color-border);
+  color: rgba(255, 255, 255, 0.7);
+  border-left-color: rgba(255, 255, 255, 0.3);
 }
 
 .flag-item--clean {
-  color: var(--color-low);
+  color: #fff;
   border-left-color: var(--color-low);
 }
 
@@ -264,50 +304,86 @@ body {
 .tip-text,
 .url-display {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #fff;
   line-height: 1.6;
-  background-color: var(--color-surface);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-sm);
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .url-display {
   word-break: break-all;
   font-family: monospace;
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Tip section — slightly different background to distinguish it visually */
 .section--tip {
-  background-color: #eef2ff;
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
   padding: var(--space-sm);
 }
 
 .section--tip .section-title {
-  color: var(--color-accent);
+  color: #fff;
 }
 
 .section--tip .tip-text {
   background: transparent;
   border: none;
   padding: 0;
-  color: #1e3a8a;
+  color: #fff;
 }
 
-/* ---------------------------------------------------------------------------
+/* 
    Footer
---------------------------------------------------------------------------- */
+ */
 
 .app-footer {
   padding: var(--space-sm) var(--space-lg);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
 }
 
 .app-footer p {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.stop-btn {
+  padding: 10px 24px;
+  border-radius: 50px;
+  cursor: pointer;
+  border: 0;
+  background-color: white;
+  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-size: 12px;
+  transition: all 0.5s ease;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.stop-btn:hover {
+  letter-spacing: 3px;
+  background-color: #dc2626;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #dc2626 0px 7px 29px 0px;
+}
+
+.stop-btn:active {
+  letter-spacing: 3px;
+  background-color: #dc2626;
+  color: hsl(0, 0%, 100%);
+  box-shadow: #dc2626 0px 0px 0px 0px;
+  transform: translateY(10px);
+  transition: 100ms;
 }

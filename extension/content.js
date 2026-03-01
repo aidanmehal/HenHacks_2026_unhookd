@@ -19,9 +19,9 @@
 
 "use strict";
 
-// ---------------------------------------------------------------------------
+// 
 // Constants
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Minimum content length (chars) required before triggering an email analysis.
@@ -42,9 +42,9 @@ const EMAIL_DEBOUNCE_MS = 800;
 const LINK_HOVER_DEBOUNCE_MS = 400;
 
 
-// ---------------------------------------------------------------------------
+// 
 // Utility: simple debounce
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Returns a debounced version of `fn` that waits `delay` ms after the last
@@ -63,9 +63,9 @@ function debounce(fn, delay) {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // Email extraction helpers (platform-agnostic stubs)
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Attempt to extract email metadata from the current page's DOM.
@@ -107,9 +107,9 @@ function extractEmailFromDOM() {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // Email analysis trigger
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Extract email content and forward it to background.js for analysis.
@@ -140,9 +140,9 @@ function triggerEmailAnalysis() {
 const debouncedEmailAnalysis = debounce(triggerEmailAnalysis, EMAIL_DEBOUNCE_MS);
 
 
-// ---------------------------------------------------------------------------
+// 
 // Link analysis trigger
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Per-link hover timeout handles, keyed by element reference.
@@ -217,9 +217,9 @@ function attachLinkListeners() {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // DOM mutation observer — re-run extraction as the page updates dynamically
-// ---------------------------------------------------------------------------
+// 
 
 const observer = new MutationObserver(() => {
   // Re-attach link listeners on newly added anchor elements
@@ -235,9 +235,9 @@ observer.observe(document.body, {
 });
 
 
-// ---------------------------------------------------------------------------
+// 
 // Initial run
-// ---------------------------------------------------------------------------
+// 
 
 attachLinkListeners();
 debouncedEmailAnalysis();

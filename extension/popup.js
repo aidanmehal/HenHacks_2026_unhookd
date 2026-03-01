@@ -18,9 +18,9 @@
 "use strict";
 
 
-// ---------------------------------------------------------------------------
-// Severity mapping
-// ---------------------------------------------------------------------------
+// 
+// Risk level thresholds
+// 
 
 /**
  * Map a severity string to a human-readable label and CSS class.
@@ -42,9 +42,9 @@ function getSeverityMeta(severity) {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // DOM helpers
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Render severity, risk badge, flag list, and explanation into a panel.
@@ -128,9 +128,9 @@ function escapeHtml(str) {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // Tab switching
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Wire up the Email / Link tab buttons to show/hide the correct panel.
@@ -163,11 +163,38 @@ function initTabs() {
 }
 
 
-// ---------------------------------------------------------------------------
+// 
 // Initialisation — runs when popup DOM is ready
-// ---------------------------------------------------------------------------
+// 
+
+
+
+// 
+// Floating button handlers
+// 
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Handle floating Start button click
+  const floatingStartBtn = document.getElementById("floatingStartBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const mainContent = document.getElementById("mainContent");
+
+  if (floatingStartBtn) {
+    floatingStartBtn.addEventListener("click", () => {
+      mainContent.style.display = "block";
+      floatingStartBtn.style.display = "none";
+      document.body.classList.add("button-hidden");
+    });
+  }
+
+  if (stopBtn) {
+    stopBtn.addEventListener("click", () => {
+      mainContent.style.display = "none";
+      floatingStartBtn.style.display = "block";
+      document.body.classList.remove("button-hidden");
+    });
+  }
+
   initTabs();
 
   // Read the latest cached results written by background.js
