@@ -15,9 +15,9 @@ import re
 from typing import List
 
 
-# ---------------------------------------------------------------------------
+
 # Individual heuristic checks
-# ---------------------------------------------------------------------------
+
 
 def check_sender_domain(sender: str) -> List[str]:
     """
@@ -150,9 +150,9 @@ def check_links_in_email(links: List[str]) -> List[str]:
     return flags
 
 
-# ---------------------------------------------------------------------------
+
 # Aggregator — called by the API layer
-# ---------------------------------------------------------------------------
+
 
 def analyze_email(sender: str, subject: str, body: str, links: List[str]) -> List[str]:
     """

@@ -168,20 +168,20 @@ body {
   flex: 1;
 }
 
-.score-value {
+.severity-value {
   font-size: var(--font-size-xl);
   font-weight: 800;
   line-height: 1;
   color: var(--color-text);
+  text-transform: capitalize;
   transition: color 0.3s;
 }
 
-/* Risk-level colour overrides for score */
-.score--low      { color: var(--color-low);      }
-.score--medium   { color: var(--color-medium);   }
-.score--high     { color: var(--color-high);     }
-.score--critical { color: var(--color-critical); }
-.score--unknown  { color: var(--color-unknown);  }
+/* Severity colour overrides */
+.severity--low      { color: var(--color-low);      }
+.severity--medium   { color: var(--color-medium);   }
+.severity--high     { color: var(--color-high);     }
+.severity--unknown  { color: var(--color-unknown);  }
 
 .score-suffix {
   font-size: var(--font-size-sm);

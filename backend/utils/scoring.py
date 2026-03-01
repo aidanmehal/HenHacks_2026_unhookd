@@ -7,12 +7,15 @@ tune weights without touching the heuristic rules.
 """
 
 from typing import Dict, List
+import logging
+
+logger = logging.getLogger("unhookd.utils.scoring")
 
 
-# ---------------------------------------------------------------------------
+
 # Flag weight registry
 # Maps flag identifiers to their numeric severity contribution (0–100 scale).
-# ---------------------------------------------------------------------------
+
 
 EMAIL_FLAG_WEIGHTS: Dict[str, int] = {
     # Sender / domain signals
@@ -47,9 +50,9 @@ LINK_FLAG_WEIGHTS: Dict[str, int] = {
 }
 
 
-# ---------------------------------------------------------------------------
+
 # Score calculation helpers
-# ---------------------------------------------------------------------------
+
 
 def calculate_score(flags: List[str], weight_map: Dict[str, int]) -> int:
     """
@@ -78,8 +81,7 @@ def calculate_score(flags: List[str], weight_map: Dict[str, int]) -> int:
         weight = weight_map.get(flag, 0)
         if weight == 0:
             # Unrecognised flag — log for visibility but don't crash
-            # TODO: Replace print with proper structured logging
-            print(f"[scoring] Unknown flag '{flag}' — defaulting to weight 0")
+            logger.debug("Unknown flag '%s' — defaulting to weight 0", flag)
         total += weight
 
     # Clamp to valid range

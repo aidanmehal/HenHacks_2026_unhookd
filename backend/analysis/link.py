@@ -12,6 +12,7 @@ Design principles:
 """
 
 import re
+import ipaddress
 from urllib.parse import urlparse
 from typing import List
 
@@ -55,8 +56,12 @@ def check_https(url: str) -> List[str]:
 
     # TODO: Also flag non-standard schemes (ftp://, data://, javascript:)
     parsed = urlparse(url)
-    if parsed.scheme.lower() != "https":
+    scheme = (parsed.scheme or "").lower()
+    if scheme != "https":
+        # Flag lack of HTTPS and also flag non-standard schemes
         flags.append("no_https")
+        if scheme in ("ftp", "data", "javascript", "file"):
+            flags.append("non_standard_scheme")
 
     return flags
 
@@ -132,12 +137,14 @@ def check_ip_address_url(url: str) -> List[str]:
     parsed = urlparse(url)
     hostname = parsed.hostname or ""
 
-    # Basic IPv4 pattern — TODO: add IPv6 and encoded IP variants
-    ipv4_pattern = re.compile(
-        r"^(\d{1,3}\.){3}\d{1,3}$"
-    )
-    if ipv4_pattern.match(hostname):
+    # Detect IPv4 or IPv6 using ipaddress module for reliability
+    try:
+        candidate = hostname.strip("[]")
+        ipaddress.ip_address(candidate)
         flags.append("ip_address_url")
+    except Exception:
+        # not an IP address
+        pass
 
     return flags
 

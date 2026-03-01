@@ -79,21 +79,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  * TODO: Add request timeout (AbortController).
  * TODO: Add retry logic for transient network errors.
  */
+// Helper: fetch with timeout and simple retry
+async function fetchWithRetry(url, options = {}, { timeout = 5000, retries = 1 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const combined = { ...options, signal: controller.signal };
+      const res = await fetch(url, combined);
+      clearTimeout(id);
+      if (!res.ok) throw new Error(`Backend error: ${res.status} ${res.statusText}`);
+      return await res.json();
+    } catch (err) {
+      clearTimeout(id);
+      if (err.name === 'AbortError') {
+        if (attempt === retries) throw new Error('Request timed out');
+      } else {
+        if (attempt === retries) throw err;
+      }
+      // backoff before retrying
+      await new Promise(r => setTimeout(r, 200 * Math.pow(2, attempt)));
+    }
+  }
+}
+
 async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
-  const response = await fetch(`${API_BASE_URL}/analyze/email`, {
+  const result = await fetchWithRetry(`${API_BASE_URL}/analyze/email`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sender, subject, body, links }),
-  });
+  }, { timeout: 7000, retries: 1 });
 
-  if (!response.ok) {
-    throw new Error(`Backend error: ${response.status} ${response.statusText}`);
-  }
-
-  const result = await response.json();
-
-  // Cache the latest email result for the popup to read on open
-  // TODO: Use chrome.storage.session once Chrome 102+ is a safe minimum target
   await chrome.storage.local.set({ latestEmailResult: result });
 
   return result;
@@ -108,21 +124,37 @@ async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
  *
  * TODO: Debounce rapid link-hover events to avoid flooding the API.
  */
-async function handleLinkAnalysis({ url }) {
-  const response = await fetch(`${API_BASE_URL}/analyze/link`, {
+// Debounce wrapper for rapid hover events
+function debounce(fn, wait) {
+  let t = null;
+  return function (...args) {
+    if (t) clearTimeout(t);
+    return new Promise((resolve, reject) => {
+      t = setTimeout(async () => {
+        try {
+          const r = await fn.apply(this, args);
+          resolve(r);
+        } catch (e) {
+          reject(e);
+        }
+      }, wait);
+    });
+  };
+}
+
+async function _doHandleLinkAnalysis({ url }) {
+  const result = await fetchWithRetry(`${API_BASE_URL}/analyze/link`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
+  }, { timeout: 5000, retries: 1 });
+
+  await chrome.storage.local.set({
+    latestLinkResult: result,
+    latestLinkUrl: url,
   });
-
-  if (!response.ok) {
-    throw new Error(`Backend error: ${response.status} ${response.statusText}`);
-  }
-
-  const result = await response.json();
-
-  // Cache the latest link result for the popup to read on open
-  await chrome.storage.local.set({ latestLinkResult: result });
 
   return result;
 }
+
+const handleLinkAnalysis = debounce(_doHandleLinkAnalysis, 150);

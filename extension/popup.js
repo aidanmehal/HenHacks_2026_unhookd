@@ -3,7 +3,7 @@
  *
  * Responsibilities:
  *   1. On open, read the latest cached analysis results from chrome.storage.
- *   2. Render risk score, flags, AI explanation, and education tip.
+ *   2. Render severity, flags, AI explanation, and education tip.
  *   3. Handle tab switching between Email and Link result panels.
  *   4. Apply visual risk-level styling based on the score.
  *
@@ -19,23 +19,26 @@
 
 
 // ---------------------------------------------------------------------------
-// Risk level thresholds
+// Severity mapping
 // ---------------------------------------------------------------------------
 
 /**
- * Map a 0–100 risk score to a human-readable risk level and CSS class.
+ * Map a severity string to a human-readable label and CSS class.
  *
- * @param {number} score
+ * @param {string|null|undefined} severity
  * @returns {{ label: string, cssClass: string }}
  */
-function getRiskLevel(score) {
-  if (score === null || score === undefined) {
-    return { label: "Unknown",  cssClass: "badge--unknown" };
+function getSeverityMeta(severity) {
+  switch ((severity || "").toLowerCase()) {
+    case "low":
+      return { label: "Low Risk", cssClass: "badge--low" };
+    case "medium":
+      return { label: "Medium Risk", cssClass: "badge--medium" };
+    case "high":
+      return { label: "High Risk", cssClass: "badge--high" };
+    default:
+      return { label: "Unknown", cssClass: "badge--unknown" };
   }
-  if (score <= 20) return { label: "Low Risk",      cssClass: "badge--low"    };
-  if (score <= 50) return { label: "Moderate Risk", cssClass: "badge--medium" };
-  if (score <= 75) return { label: "High Risk",     cssClass: "badge--high"   };
-  return               { label: "Critical Risk",  cssClass: "badge--critical" };
 }
 
 
@@ -44,41 +47,43 @@ function getRiskLevel(score) {
 // ---------------------------------------------------------------------------
 
 /**
- * Render a score, risk badge, flag list, and explanation into a panel.
+ * Render severity, risk badge, flag list, and explanation into a panel.
  *
  * @param {Object} params
- * @param {string}        params.scoreId       - ID of the score <span>.
+ * @param {string}        params.severityId    - ID of the severity <span>.
  * @param {string}        params.badgeId        - ID of the badge <span>.
  * @param {string}        params.flagsId        - ID of the flags <ul>.
  * @param {string}        params.explanationId  - ID of the explanation <p>.
  * @param {string|null}   params.tipId          - ID of the tip <p> (email panel only).
+ * @param {string|null}   params.urlId          - ID of the scanned URL <p> (link panel only).
+ * @param {string|null}   params.urlValue       - Last scanned URL.
  * @param {Object|null}   params.data           - The cached API result object, or null.
  */
-function renderPanel({ scoreId, badgeId, flagsId, explanationId, tipId = null, data }) {
-  const scoreEl       = document.getElementById(scoreId);
+function renderPanel({ severityId, badgeId, flagsId, explanationId, tipId = null, urlId = null, urlValue = null, data }) {
+  const severityEl    = document.getElementById(severityId);
   const badgeEl       = document.getElementById(badgeId);
   const flagsEl       = document.getElementById(flagsId);
   const explanationEl = document.getElementById(explanationId);
   const tipEl         = tipId ? document.getElementById(tipId) : null;
+  const urlEl         = urlId ? document.getElementById(urlId) : null;
 
   if (!data) {
     // No cached result available — show default "waiting" state
-    scoreEl.textContent       = "--";
+    severityEl.textContent    = "Waiting";
+    severityEl.className      = "severity-value severity--unknown";
     badgeEl.textContent       = "No scan yet";
     badgeEl.className         = "risk-badge badge--unknown";
     flagsEl.innerHTML         = '<li class="flag-item flag-item--empty">No data — browse to a page or email to trigger a scan</li>';
     if (explanationEl) explanationEl.textContent = "No scan data available yet.";
     if (tipEl)         tipEl.textContent         = "Visit an email or web page to start scanning.";
+    if (urlEl)         urlEl.textContent         = "Hover over a link to scan it";
     return;
   }
 
-  // Score
-  const score = data.risk_score ?? 0;
-  scoreEl.textContent = score;
-
-  // Apply colour-coded class to score value
-  const { label, cssClass } = getRiskLevel(score);
-  scoreEl.className = `score-value score--${cssClass.replace("badge--", "")}`;
+  const severity = (data.severity || "unknown").toLowerCase();
+  const { label, cssClass } = getSeverityMeta(severity);
+  severityEl.textContent = severity.charAt(0).toUpperCase() + severity.slice(1);
+  severityEl.className = `severity-value severity--${cssClass.replace("badge--", "")}`;
 
   // Badge
   badgeEl.textContent = label;
@@ -102,6 +107,10 @@ function renderPanel({ scoreId, badgeId, flagsId, explanationId, tipId = null, d
   // Educational tip (email panel only)
   if (tipEl) {
     tipEl.textContent = data.education_tip ?? "No tip available.";
+  }
+
+  if (urlEl) {
+    urlEl.textContent = urlValue ?? "Recently scanned link unavailable.";
   }
 }
 
@@ -162,13 +171,14 @@ document.addEventListener("DOMContentLoaded", () => {
   initTabs();
 
   // Read the latest cached results written by background.js
-  chrome.storage.local.get(["latestEmailResult", "latestLinkResult"], (stored) => {
+  chrome.storage.local.get(["latestEmailResult", "latestLinkResult", "latestLinkUrl"], (stored) => {
     const emailData = stored.latestEmailResult ?? null;
     const linkData  = stored.latestLinkResult  ?? null;
+    const linkUrl   = stored.latestLinkUrl ?? null;
 
     // Render email panel
     renderPanel({
-      scoreId:      "email-score",
+      severityId:   "email-severity",
       badgeId:      "email-badge",
       flagsId:      "email-flags",
       explanationId: "email-explanation",
@@ -176,13 +186,13 @@ document.addEventListener("DOMContentLoaded", () => {
       data:         emailData,
     });
 
-    // Render link panel — also show the scanned URL if available
-    // TODO: Store the scanned URL alongside the result in background.js
     renderPanel({
-      scoreId:      "link-score",
+      severityId:   "link-severity",
       badgeId:      "link-badge",
       flagsId:      "link-flags",
       explanationId: "link-explanation",
+      urlId:        "link-url",
+      urlValue:     linkUrl,
       data:         linkData,
     });
   });
