@@ -2,7 +2,8 @@
 link.py — Rule-based security heuristics for URL / link analysis.
 
 Each check function inspects one dimension of the URL and returns a list of
-flag identifier strings.  Flags are later weighted and summed by scoring.py.
+flag identifier strings. These flags are later passed to the AI layer as
+guideline signals.
 
 Design principles:
   - Each check is a pure function: (url) → List[str]
@@ -242,7 +243,7 @@ def analyze_link(url: str) -> List[str]:
     Run all link heuristic checks and return a deduplicated flag list.
 
     This is the single entry point called by the API route handler.
-    The returned flags are passed to scoring.calculate_link_score().
+    The returned flags are converted into prompt guidance for the AI layer.
 
     Args:
         url: The URL string to analyse.

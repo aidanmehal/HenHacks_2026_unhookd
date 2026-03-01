@@ -5,7 +5,7 @@
  *   1. On open, read the latest cached analysis results from chrome.storage.
  *   2. Render severity, flags, AI explanation, and education tip.
  *   3. Handle tab switching between Email and Link result panels.
- *   4. Apply visual risk-level styling based on the score.
+ *   4. Apply visual risk-level styling based on the returned severity.
  *
  * NOTE: The popup does NOT trigger analysis itself — content.js and
  * background.js handle that in real time.  The popup is a read-only view
@@ -18,9 +18,9 @@
 "use strict";
 
 
-// 
-// Risk level thresholds
-// 
+//
+// Severity metadata
+//
 
 /**
  * Map a severity string to a human-readable label and CSS class.
@@ -66,6 +66,11 @@ function renderPanel({ severityId, badgeId, flagsId, explanationId, tipId = null
   const explanationEl = document.getElementById(explanationId);
   const tipEl         = tipId ? document.getElementById(tipId) : null;
   const urlEl         = urlId ? document.getElementById(urlId) : null;
+
+  if (!severityEl || !badgeEl || !flagsEl || !explanationEl) {
+    console.warn("[unhookd] Popup panel is missing one or more required DOM nodes.");
+    return;
+  }
 
   if (!data) {
     // No cached result available — show default "waiting" state
@@ -163,15 +168,39 @@ function initTabs() {
 }
 
 
-// 
+//
+// Rendering orchestration
+//
+
+function renderStoredResults(stored) {
+  const emailData = stored.latestEmailResult ?? null;
+  const linkData  = stored.latestLinkResult  ?? null;
+  const linkUrl   = stored.latestLinkUrl ?? null;
+
+  renderPanel({
+    severityId:   "email-severity",
+    badgeId:      "email-badge",
+    flagsId:      "email-flags",
+    explanationId: "email-explanation",
+    tipId:        "email-tip",
+    data:         emailData,
+  });
+
+  renderPanel({
+    severityId:   "link-severity",
+    badgeId:      "link-badge",
+    flagsId:      "link-flags",
+    explanationId: "link-explanation",
+    urlId:        "link-url",
+    urlValue:     linkUrl,
+    data:         linkData,
+  });
+}
+
+
+//
 // Initialisation — runs when popup DOM is ready
-// 
-
-
-
-// 
-// Floating button handlers
-// 
+//
 
 document.addEventListener("DOMContentLoaded", () => {
   // Handle floating Start button click
@@ -198,29 +227,16 @@ document.addEventListener("DOMContentLoaded", () => {
   initTabs();
 
   // Read the latest cached results written by background.js
-  chrome.storage.local.get(["latestEmailResult", "latestLinkResult", "latestLinkUrl"], (stored) => {
-    const emailData = stored.latestEmailResult ?? null;
-    const linkData  = stored.latestLinkResult  ?? null;
-    const linkUrl   = stored.latestLinkUrl ?? null;
+  chrome.storage.local.get(["latestEmailResult", "latestLinkResult", "latestLinkUrl"], renderStoredResults);
 
-    // Render email panel
-    renderPanel({
-      severityId:   "email-severity",
-      badgeId:      "email-badge",
-      flagsId:      "email-flags",
-      explanationId: "email-explanation",
-      tipId:        "email-tip",
-      data:         emailData,
-    });
+  // Keep the popup in sync if a scan finishes while it is open.
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") return;
 
-    renderPanel({
-      severityId:   "link-severity",
-      badgeId:      "link-badge",
-      flagsId:      "link-flags",
-      explanationId: "link-explanation",
-      urlId:        "link-url",
-      urlValue:     linkUrl,
-      data:         linkData,
-    });
+    if (!changes.latestEmailResult && !changes.latestLinkResult && !changes.latestLinkUrl) {
+      return;
+    }
+
+    chrome.storage.local.get(["latestEmailResult", "latestLinkResult", "latestLinkUrl"], renderStoredResults);
   });
 });

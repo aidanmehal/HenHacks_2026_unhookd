@@ -18,7 +18,7 @@ def test_analyze_email_basic():
     assert "flags" in data
     assert "ai_explanation" in data
     assert "education_tip" in data
-    assert data["severity"] in {"low", "medium", "high"}
+    assert data["severity"] in {"no_risk", "low", "medium", "high", "critical"}
     assert isinstance(data["flags"], list)
     assert isinstance(data["ai_explanation"], str)
     assert isinstance(data["education_tip"], str)
@@ -31,7 +31,7 @@ def test_analyze_link_basic():
     assert "severity" in data
     assert "flags" in data
     assert "ai_explanation" in data
-    assert data["severity"] in {"low", "medium", "high"}
+    assert data["severity"] in {"no_risk", "low", "medium", "high", "critical"}
     assert isinstance(data["flags"], list)
     assert isinstance(data["ai_explanation"], str)
 
@@ -48,7 +48,7 @@ def test_analyze_download_basic():
     assert "flags" in data
     assert "ai_explanation" in data
     assert "education_tip" in data
-    assert data["severity"] in {"low", "medium", "high"}
+    assert data["severity"] in {"no_risk", "low", "medium", "high", "critical"}
     assert isinstance(data["flags"], list)
     assert isinstance(data["ai_explanation"], str)
     assert isinstance(data["education_tip"], str)

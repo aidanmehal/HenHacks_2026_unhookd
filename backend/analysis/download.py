@@ -17,7 +17,7 @@ def analyze_download(url: str, filename: Optional[str] = None, content_type: Opt
     """
     Analyse a download by running URL heuristics and simple filename/mime checks.
 
-    Returns a deduplicated list of flag identifiers suitable for scoring.
+    Returns a deduplicated list of flag identifiers suitable for AI guidance.
     """
     flags: List[str] = []
 

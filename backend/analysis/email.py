@@ -2,7 +2,8 @@
 email.py — Rule-based phishing heuristics for email analysis.
 
 Each check function inspects one dimension of the email and returns a list of
-flag identifier strings.  Flags are later weighted and summed by scoring.py.
+flag identifier strings. These flags are later passed to the AI layer as
+guideline signals.
 
 Design principles:
   - Each check is a pure function: (input) → List[str]
@@ -159,7 +160,7 @@ def analyze_email(sender: str, subject: str, body: str, links: List[str]) -> Lis
     Run all email heuristic checks and return a deduplicated flag list.
 
     This is the single entry point called by the API route handler.
-    The returned flags are passed to scoring.calculate_email_score().
+    The returned flags are converted into prompt guidance for the AI layer.
 
     Args:
         sender:  Sender email address.

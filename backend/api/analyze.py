@@ -8,8 +8,8 @@ Endpoints:
 Each handler follows the same pipeline:
     1. Validate the incoming request body (Pydantic handles this automatically).
     2. Run deterministic heuristic checks via the analysis/ modules.
-    3. Calculate a numeric risk score via utils/scoring.py.
-    4. Fetch AI-generated explanation / tip from ai/gemini.py.
+    3. Convert heuristic flags into human-readable guideline signals.
+    4. Ask Gemini for the final severity, display flags, and explanation.
     5. Return a structured JSON response.
 
 No user data is stored at any point in this pipeline.
@@ -73,7 +73,7 @@ async def analyze_email_endpoint(request: EmailAnalysisRequest) -> EmailAnalysis
 
     Pipeline:
         1. Run rule-based heuristics on sender, subject, body, and links.
-        2. Provide heuristic guideline signals to Gemini.
+        2. Convert heuristic flags into prompt guidelines.
         3. Gemini returns the final severity, flags, explanation, and tip.
         4. Return structured JSON response.
 
@@ -123,7 +123,7 @@ async def analyze_link_endpoint(request: LinkAnalysisRequest) -> LinkAnalysisRes
 
     Pipeline:
         1. Run rule-based heuristics against the URL structure.
-        2. Provide heuristic guideline signals to Gemini.
+        2. Convert heuristic flags into prompt guidelines.
         3. Gemini returns the final severity, flags, and explanation.
         4. Return structured JSON response.
 
@@ -156,8 +156,8 @@ async def analyze_download_endpoint(request: DownloadAnalysisRequest) -> Downloa
     Analyse a download URL and return a risk assessment.
 
     This endpoint inspects the URL plus optional filename / content-type hints
-    and returns a score, detected flags, and a Gemini-generated explanation
-    and education tip.
+    and returns Gemini-decided severity, detected flags, explanation, and
+    an education tip.
     """
     guideline_flags = analyze_download(url=str(request.url), filename=request.filename, content_type=request.content_type)
     prompt_guidelines = [FLAG_DISPLAY_LABELS.get(flag, flag.replace("_", " ").title()) for flag in guideline_flags]

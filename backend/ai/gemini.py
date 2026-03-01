@@ -1,8 +1,8 @@
 """
 gemini.py — Gemini API integration for AI-generated explanations and tips.
 
-Gemini now acts as the final decision-maker for severity classification.
-The deterministic analysis modules remain as guideline generators only:
+Gemini is the final decision-maker for severity classification.
+The deterministic analysis modules remain guideline generators only:
 they surface hints that are passed into the model, but Gemini returns the
 final severity, the displayed flags, and the explanation shown to users.
 """
@@ -15,8 +15,16 @@ import logging
 import json
 import re
 
-from dotenv import load_dotenv
-from google import genai
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs) -> bool:
+        return False
+
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
 # Load .env from the same directory as this file (optional)
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
@@ -27,12 +35,15 @@ logger = logging.getLogger("unhookd.ai.gemini")
 # Initialise client if API key available; otherwise run in offline stub mode
 _GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 _GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-if _GEMINI_KEY:
+if _GEMINI_KEY and genai is not None:
     try:
         client = genai.Client(api_key=_GEMINI_KEY)
     except Exception as e:
         logger.exception("Failed to initialise Gemini client: %s", e)
         client = None
+elif _GEMINI_KEY and genai is None:
+    logger.warning("GEMINI_API_KEY is set but google-genai is not installed — running with AI fallback mode")
+    client = None
 else:
     logger.warning("GEMINI_API_KEY not set — running with AI stubs")
     client = None
@@ -59,7 +70,7 @@ def _build_email_prompt(sender: str, subject: str, body: str, links: List[str], 
         "Evaluate sender trust, urgency, credential requests, financial requests, social engineering, and suspicious links.\n"
         "Respond ONLY with valid JSON using this exact schema:\n"
         "{\n"
-        "  \"severity\": \"low|medium|high\",\n"
+        "  \"severity\": \"no_risk|low|medium|high|critical\",\n"
         "  \"flags\": [\"short human-readable phrases\"],\n"
         "  \"ai_explanation\": \"2-3 sentence plain-English explanation\",\n"
         "  \"education_tip\": \"one short actionable safety tip\"\n"
@@ -88,7 +99,7 @@ def _build_link_prompt(url: str, guideline_flags: List[str]) -> str:
         "Use the heuristic guideline signals as hints only; you must make the final decision.\n"
         "Respond ONLY with valid JSON using this exact schema:\n"
         "{\n"
-        "  \"severity\": \"low|medium|high\",\n"
+        "  \"severity\": \"no_risk|low|medium|high|critical\",\n"
         "  \"flags\": [\"short human-readable phrases\"],\n"
         "  \"ai_explanation\": \"1-2 sentence plain-English explanation\"\n"
         "}\n"
@@ -116,7 +127,7 @@ def _build_download_prompt(
         "Use the heuristic guideline signals as hints only; you must make the final decision.\n"
         "Respond ONLY with valid JSON using this exact schema:\n"
         "{\n"
-        "  \"severity\": \"low|medium|high\",\n"
+        "  \"severity\": \"no_risk|low|medium|high|critical\",\n"
         "  \"flags\": [\"short human-readable phrases\"],\n"
         "  \"ai_explanation\": \"2 sentence explanation\",\n"
         "  \"education_tip\": \"one short actionable safety tip\"\n"
@@ -139,7 +150,7 @@ def _cache_key(flags: List[str]) -> Tuple[str, ...]:
 
 
 @lru_cache(maxsize=256)
-def _generate_from_model_cached(model: str, prompt: str, flags_key: Tuple[str, ...], risk_score: int) -> str:
+def _generate_from_model_cached(model: str, prompt: str, flags_key: Tuple[str, ...]) -> str:
     """Internal cached wrapper around model generation."""
     if client is None:
         raise RuntimeError("Gemini client not configured")
@@ -163,12 +174,18 @@ def _extract_json_payload(text: str) -> dict:
 
 def _normalize_severity(value: Optional[str]) -> str:
     candidate = (value or "").strip().lower()
-    if candidate in {"low", "medium", "high"}:
+    if candidate in {"no_risk", "low", "medium", "high", "critical"}:
         return candidate
+    if candidate in {"none", "none_detected", "safe", "no risk", "no-risk", "no_risk_detected"}:
+        return "no_risk"
     if candidate in {"critical", "severe"}:
-        return "high"
+        return "critical"
+    if candidate in {"very high", "very_high"}:
+        return "critical"
     if candidate in {"moderate", "med"}:
         return "medium"
+    if candidate in {"minor", "minimal"}:
+        return "low"
     return "medium"
 
 
@@ -180,15 +197,55 @@ def _normalize_flags(value: object, default_flags: List[str]) -> List[str]:
     return default_flags
 
 
+def _infer_fallback_severity(default_flags: List[str]) -> str:
+    if not default_flags:
+        return "no_risk"
+
+    critical_signal_flags = {
+        "Password requested",
+        "Financial request",
+        "Known malicious domain",
+        "Known malicious download source",
+    }
+    high_signal_flags = {
+        "IP address in URL",
+        "Suspicious file extension",
+        "Direct request for account password",
+        "Direct credential request",
+    }
+    medium_signal_flags = {
+        "Suspicious sender domain",
+        "Domain spoofing",
+        "Contains suspicious links",
+        "Link/domain mismatch",
+        "Unencrypted (no HTTPS)",
+        "Suspicious top-level domain",
+        "URL shortener",
+        "Excessive subdomains",
+        "Urgent language",
+    }
+
+    if any(flag in critical_signal_flags for flag in default_flags):
+        return "critical"
+    if any(flag in high_signal_flags for flag in default_flags):
+        return "high"
+    if any(flag in medium_signal_flags for flag in default_flags) or len(default_flags) >= 3:
+        return "medium"
+    return "low"
+
+
 def _offline_decision(default_flags: List[str], include_tip: bool) -> dict:
-    severity = "high" if default_flags else "medium"
+    severity = _infer_fallback_severity(default_flags)
     result = {
         "severity": severity,
         "flags": default_flags or ["AI review unavailable"],
-        "ai_explanation": "Gemini is unavailable, so the app could not generate a live AI judgment.",
+        "ai_explanation": (
+            "Gemini is unavailable, so this response uses heuristic fallback "
+            "guidance instead of a live model judgment."
+        ),
     }
     if include_tip:
-        result["education_tip"] = "Treat unexpected messages, links, and downloads cautiously until AI analysis is available."
+        result["education_tip"] = "Verify unusual messages, links, and downloads through a trusted channel before interacting."
     return result
 
 
@@ -199,7 +256,7 @@ def _run_ai_decision(prompt: str, guideline_flags: List[str], include_tip: bool)
             raise RuntimeError("Gemini client not configured")
 
         model = _GEMINI_MODEL
-        text = _generate_from_model_cached(model, prompt, flags_key, 0)
+        text = _generate_from_model_cached(model, prompt, flags_key)
         payload = _extract_json_payload(text)
 
         result = {
