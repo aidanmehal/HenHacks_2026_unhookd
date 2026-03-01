@@ -1,5 +1,5 @@
 /**
- * popup.js — Logic for the unhookd extension popup UI.
+ * sidebar.js — Logic for the unhookd sidebar.
  *
  * Responsibilities:
  *   1. On open, read the latest cached analysis results from chrome.storage.
@@ -7,12 +7,9 @@
  *   3. Handle tab switching between Email and Link result panels.
  *   4. Apply visual risk-level styling based on the returned severity.
  *
- * NOTE: The popup does NOT trigger analysis itself — content.js and
- * background.js handle that in real time.  The popup is a read-only view
+ * NOTE: The sidebar does NOT trigger analysis itself — content.js and
+ * background.js handle that in real time.  The sidebar is a read-only view
  * of the most recently cached results.
- *
- * TODO: Add a "Scan now" button to force a re-analysis of the active tab.
- * TODO: Add a "Clear results" option for privacy-conscious users.
  */
 
 "use strict";
@@ -68,7 +65,7 @@ function renderPanel({ severityId, badgeId, flagsId, explanationId, tipId = null
   const urlEl         = urlId ? document.getElementById(urlId) : null;
 
   if (!severityEl || !badgeEl || !flagsEl || !explanationEl) {
-    console.warn("[unhookd] Popup panel is missing one or more required DOM nodes.");
+    console.warn("[unhookd] Sidebar panel is missing one or more required DOM nodes.");
     return;
   }
 
@@ -163,35 +160,13 @@ function escapeHtml(str) {
 
 /**
  * Wire up the Email / Link tab buttons to show/hide the correct panel.
+ * Instant swap with no animation.
  */
 function animatePanel(panel, show) {
   if (show) {
     panel.classList.remove("result-panel--hidden");
-    // start from zero to measured height
-    panel.style.maxHeight = "0px";
-    // force a reflow
-    panel.getBoundingClientRect();
-    panel.style.maxHeight = panel.scrollHeight + "px";
-    panel.addEventListener(
-      "transitionend",
-      () => {
-        panel.style.maxHeight = ""; // reset to auto
-      },
-      { once: true }
-    );
   } else {
-    panel.style.maxHeight = panel.scrollHeight + "px";
-    // trigger layout
-    panel.getBoundingClientRect();
-    panel.style.maxHeight = "0px";
-    panel.addEventListener(
-      "transitionend",
-      () => {
-        panel.classList.add("result-panel--hidden");
-        panel.style.maxHeight = "";
-      },
-      { once: true }
-    );
+    panel.classList.add("result-panel--hidden");
   }
 }
 
@@ -339,42 +314,10 @@ async function primeAnalysis() {
 
 
 //
-// Initialisation — runs when popup DOM is ready
+// Initialisation — runs when sidebar DOM is ready
 //
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Handle toggle button — toggles the sidebar
-  const toggleBtn = document.getElementById("toggleBtn");
-  let sidebarOpen = false;
-
-  if (toggleBtn) {
-    toggleBtn.addEventListener("click", async () => {
-      try {
-        const tab = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab[0]) {
-          sidebarOpen = !sidebarOpen;
-          
-          if (sidebarOpen) {
-            // Open the sidebar panel
-            await chrome.sidePanel.open({ tabId: tab[0].id });
-            // Close the popup after opening sidebar
-            window.close();
-          } else {
-            // Close the sidebar panel by disabling it
-            await chrome.sidePanel.setOptions({
-              tabId: tab[0].id,
-              enabled: false
-            });
-            toggleBtn.textContent = "GO PHISH";
-            toggleBtn.classList.remove("stop-state");
-          }
-        }
-      } catch (err) {
-        console.error("[unhookd] Error toggling sidebar:", err);
-      }
-    });
-  }
-
   initTabs();
 
   primeAnalysis();
@@ -382,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Read the latest cached results written by background.js
   chrome.storage.local.get(["latestEmailResult", "latestLinkResult", "latestLinkUrl"], renderStoredResults);
 
-  // Keep the popup in sync if a scan finishes while it is open.
+  // Keep the sidebar in sync if a scan finishes while it is open.
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
 

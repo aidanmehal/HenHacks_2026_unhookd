@@ -3,25 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>unhookd</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>unhookd - Sidebar</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    /* Sidebar-specific overrides */
+    body {
+      width: 100% !important;
+      height: 100% !important;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #mainContent {
+      flex: 1;
+      overflow-y: auto;
+      transform: none !important;
+    }
+    
+    #mainContent.collapsed {
+      transform: none !important;
+    }
+
+    /* Center logo in header */
+    .app-FullLogoheader {
+      justify-content: center !important;
+    }
+
+    .logo-img {
+      margin-left: 0 !important;
+    }
+
+    /* Make "Waiting" text match other text styling */
+    .severity-value {
+      font-size: var(--font-size-base) !important;
+      font-weight: 500 !important;
+      color: #ffffff !important;
+    }
+
+    .severity--unknown {
+      color: #ffffff !important;
+    }
+  </style>
 </head>
 <body>
-
 
   <!--        Header
    -->
   <header class="app-FullLogoheader">
-    <img src="images/FullLogo.svg" alt="" class="logo-img" />
+    <img src="../images/FullLogo.svg" alt="" class="logo-img" />
   </header>
 
-  <!--        Toggle button (top-left)
+  <!--        Main content
    -->
-  <button class="toggle-btn" id="toggleBtn">GO PHISH</button>
-
-  <!--        Main content (hidden initially)
-   -->
-  <div class="main-content collapsed" id="mainContent">
+  <div class="main-content" id="mainContent">
 
   <!--        Tab bar — switch between Email and Link results
    -->
@@ -129,6 +163,6 @@
 
   </div>
 
-  <script src="popup.js"></script>
+  <script src="sidebar.js"></script>
 </body>
 </html>

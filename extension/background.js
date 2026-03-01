@@ -25,6 +25,83 @@
 
 /** Base URL of the unhookd FastAPI backend. Change for production. */
 const API_BASE_URL = "http://localhost:8000";
+const pendingEmailRequests = new Map();
+const pendingLinkRequests = new Map();
+
+
+function buildFallbackResult(kind, error, context = {}) {
+  const message = error instanceof Error ? error.message : String(error || "Unknown error");
+  const explanation = `The ${kind} scan could not reach the backend, so no live analysis was completed. ${message}`;
+
+  if (kind === "email") {
+    return {
+      severity: "medium",
+      flags: ["Backend unavailable"],
+      ai_explanation: explanation,
+      education_tip: "Check that the API server is running on http://localhost:8000, then reload the extension page.",
+      ...context,
+    };
+  }
+
+  return {
+    severity: "medium",
+    flags: ["Backend unavailable"],
+    ai_explanation: explanation,
+    ...context,
+  };
+}
+
+
+function buildPendingResult(kind) {
+  if (kind === "email") {
+    return {
+      status: "pending",
+      flags: [],
+      ai_explanation: "Analyzing... Live AI analysis can take up to 30 seconds.",
+      education_tip: "Please wait while the live model completes the scan.",
+    };
+  }
+
+  return {
+    status: "pending",
+    flags: [],
+    ai_explanation: "Analyzing... Live AI analysis can take up to 30 seconds.",
+  };
+}
+
+
+function buildErrorResult(kind, error) {
+  const message = error instanceof Error ? error.message : String(error || "Unknown error");
+  if (kind === "email") {
+    return {
+      status: "error",
+      flags: [],
+      ai_explanation: `Live email analysis failed: ${message}`,
+      education_tip: "Check the backend and Gemini configuration, then try again.",
+    };
+  }
+
+  return {
+    status: "error",
+    flags: [],
+    ai_explanation: `Live link analysis failed: ${message}`,
+  };
+}
+
+
+function normalizeEmailPayload({ sender = "", subject = "", body = "", links = [] }) {
+  return JSON.stringify({
+    sender: sender.trim().toLowerCase(),
+    subject: subject.trim(),
+    body: body.trim().slice(0, 1500),
+    links: [...links].map(link => String(link).trim()).sort(),
+  });
+}
+
+
+function normalizeLinkPayload({ url = "" }) {
+  return String(url).trim();
+}
 
 
 // 
@@ -44,16 +121,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
    */
 
   if (message.type === "ANALYZE_EMAIL") {
-    handleEmailAnalysis(message.payload)
-      .then(result => sendResponse({ success: true, data: result }))
-      .catch(err  => sendResponse({ success: false, error: err.message }));
-    return true; // Keep channel open for async response
+    handleEmailAnalysis(message.payload).catch(err => {
+      console.warn("[unhookd] Email analysis failed:", err?.message || err);
+    });
+    return false;
   }
 
   if (message.type === "ANALYZE_LINK") {
-    handleLinkAnalysis(message.payload)
-      .then(result => sendResponse({ success: true, data: result }))
-      .catch(err  => sendResponse({ success: false, error: err.message }));
+    handleLinkAnalysis(message.payload).catch(err => {
+      console.warn("[unhookd] Link analysis failed:", err?.message || err);
+    });
+    return false;
+  }
+
+  if (message.action === "closeSidebar") {
+    // Handle sidebar close request
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.sidePanel.setOptions({ tabId: tabs[0].id, path: "" }, () => {
+          if (chrome.runtime.lastError) {
+            console.error("[unhookd] Error closing sidebar:", chrome.runtime.lastError);
+          }
+          sendResponse({ success: true });
+        });
+      }
+    });
     return true;
   }
 
@@ -79,21 +171,71 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  * TODO: Add request timeout (AbortController).
  * TODO: Add retry logic for transient network errors.
  */
-async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
-  const response = await fetch(`${API_BASE_URL}/analyze/email`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sender, subject, body, links }),
-  });
+// Helper: fetch with timeout and simple retry
+async function fetchWithRetry(url, options = {}, { timeout = 5000, retries = 1 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const combined = { ...options, signal: controller.signal };
+      const res = await fetch(url, combined);
+      clearTimeout(id);
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail = body?.detail ? ` - ${body.detail}` : "";
+        } catch (parseError) {
+          detail = "";
+        }
+        throw new Error(`Backend error: ${res.status} ${res.statusText}${detail}`);
+      }
+      return await res.json();
+    } catch (err) {
+      clearTimeout(id);
+      if (err.name === 'AbortError') {
+        if (attempt === retries) throw new Error('Request timed out');
+      } else {
+        if (attempt === retries) throw err;
+      }
+      // backoff before retrying
+      await new Promise(r => setTimeout(r, 200 * Math.pow(2, attempt)));
+    }
+  }
+}
 
-  if (!response.ok) {
-    throw new Error(`Backend error: ${response.status} ${response.statusText}`);
+async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
+  const cacheKey = normalizeEmailPayload({ sender, subject, body, links });
+  const pending = pendingEmailRequests.get(cacheKey);
+  if (pending) {
+    const result = await pending;
+    await chrome.storage.local.set({ latestEmailResult: result });
+    return result;
   }
 
-  const result = await response.json();
+  await chrome.storage.local.set({ latestEmailResult: buildPendingResult("email") });
 
-  // Cache the latest email result for the popup to read on open
-  // TODO: Use chrome.storage.session once Chrome 102+ is a safe minimum target
+  let result;
+  const requestPromise = (async () => {
+    return await fetchWithRetry(`${API_BASE_URL}/analyze/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender, subject, body, links }),
+    }, { timeout: 30000, retries: 1 });
+  })();
+
+  pendingEmailRequests.set(cacheKey, requestPromise);
+
+  try {
+    result = await requestPromise;
+  } catch (error) {
+    const errorResult = buildErrorResult("email", error);
+    await chrome.storage.local.set({ latestEmailResult: errorResult });
+    throw error;
+  } finally {
+    pendingEmailRequests.delete(cacheKey);
+  }
+
   await chrome.storage.local.set({ latestEmailResult: result });
 
   return result;
@@ -105,24 +247,55 @@ async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
  * @param {Object} payload
  * @param {string} payload.url  - The URL to analyse.
  * @returns {Promise<Object>}    Parsed JSON from /analyze/link.
- *
- * TODO: Debounce rapid link-hover events to avoid flooding the API.
  */
-async function handleLinkAnalysis({ url }) {
-  const response = await fetch(`${API_BASE_URL}/analyze/link`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
-  });
 
-  if (!response.ok) {
-    throw new Error(`Backend error: ${response.status} ${response.statusText}`);
+async function _doHandleLinkAnalysis({ url }) {
+  const cacheKey = normalizeLinkPayload({ url });
+  const pending = pendingLinkRequests.get(cacheKey);
+  if (pending) {
+    const result = await pending;
+    await chrome.storage.local.set({
+      latestLinkResult: result,
+      latestLinkUrl: url,
+    });
+    return result;
   }
 
-  const result = await response.json();
+  await chrome.storage.local.set({
+    latestLinkResult: buildPendingResult("link"),
+    latestLinkUrl: url,
+  });
 
-  // Cache the latest link result for the popup to read on open
-  await chrome.storage.local.set({ latestLinkResult: result });
+  let result;
+  const requestPromise = (async () => {
+    return await fetchWithRetry(`${API_BASE_URL}/analyze/link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }, { timeout: 25000, retries: 1 });
+  })();
+
+  pendingLinkRequests.set(cacheKey, requestPromise);
+
+  try {
+    result = await requestPromise;
+  } catch (error) {
+    const errorResult = buildErrorResult("link", error);
+    await chrome.storage.local.set({
+      latestLinkResult: errorResult,
+      latestLinkUrl: url,
+    });
+    throw error;
+  } finally {
+    pendingLinkRequests.delete(cacheKey);
+  }
+
+  await chrome.storage.local.set({
+    latestLinkResult: result,
+    latestLinkUrl: url,
+  });
 
   return result;
 }
+
+const handleLinkAnalysis = _doHandleLinkAnalysis;

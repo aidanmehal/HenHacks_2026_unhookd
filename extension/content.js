@@ -27,7 +27,7 @@
  * Minimum content length (chars) required before triggering an email analysis.
  * Avoids premature analysis before the DOM is fully populated.
  */
-const MIN_BODY_LENGTH = 50;
+const MIN_BODY_LENGTH = 20;
 
 /**
  * Debounce delay (ms) for DOM-mutation-triggered email extraction.
@@ -40,6 +40,15 @@ const EMAIL_DEBOUNCE_MS = 800;
  * A hover must last this long before triggering an analysis request.
  */
 const LINK_HOVER_DEBOUNCE_MS = 400;
+const EMAIL_REPEAT_SUPPRESSION_MS = 4_000;
+const LINK_REPEAT_SUPPRESSION_MS = 2_000;
+
+let lastEmailFingerprint = null;
+let lastEmailSentAt = 0;
+let emailRetryTimer = null;
+let lastLinkUrl = "";
+let lastLinkSentAt = 0;
+let lastObservedPageUrl = window.location.href;
 
 
 // 
@@ -63,6 +72,178 @@ function debounce(fn, delay) {
 }
 
 
+function getTextFromSelectors(selectors) {
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    const text = el?.innerText?.trim() || el?.textContent?.trim() || "";
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
+
+function getFirstElement(selectors) {
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    if (el) {
+      return el;
+    }
+  }
+
+  return null;
+}
+
+
+function isVisibleElement(element) {
+  if (!element || typeof element.getBoundingClientRect !== "function") {
+    return false;
+  }
+
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden") {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+
+function buildEmailFingerprint({ sender = "", subject = "", body = "", links = [] }) {
+  return JSON.stringify({
+    sender: sender.trim().toLowerCase(),
+    subject: subject.trim(),
+    body: body.trim().slice(0, 800),
+    links: [...links].sort(),
+  });
+}
+
+
+function isExtensionContextAvailable() {
+  try {
+    return Boolean(globalThis.chrome?.runtime?.id);
+  } catch (error) {
+    return false;
+  }
+}
+
+
+function safeSendRuntimeMessage(message, callback = null) {
+  if (!isExtensionContextAvailable()) {
+    return false;
+  }
+
+  try {
+    chrome.runtime.sendMessage(message, callback);
+    return true;
+  } catch (error) {
+    console.debug("[unhookd] Extension context invalidated; skipping message.");
+    return false;
+  }
+}
+
+
+function findBestEmailBodyElement() {
+  const candidates = [
+    ...document.querySelectorAll(".ii.gt div.a3s.aiL"),
+    ...document.querySelectorAll(".ii.gt div.a3s"),
+    ...document.querySelectorAll(".ii.gt div[dir='ltr']"),
+    ...document.querySelectorAll("div.a3s.aiL"),
+    ...document.querySelectorAll("div.a3s"),
+    ...document.querySelectorAll("[data-message-id] div[dir='ltr']"),
+    ...document.querySelectorAll("[role='main'] div[dir='ltr']"),
+    ...document.querySelectorAll("[data-body], .email-body, .message-body, article"),
+  ];
+
+  let best = null;
+  let bestLength = 0;
+
+  for (const candidate of candidates) {
+    if (!isVisibleElement(candidate)) {
+      continue;
+    }
+
+    const text = (candidate.innerText || candidate.textContent || "").trim();
+    if (text.length < MIN_BODY_LENGTH) {
+      continue;
+    }
+
+    if (text.length > bestLength) {
+      best = candidate;
+      bestLength = text.length;
+    }
+  }
+
+  return best;
+}
+
+
+function findSenderText() {
+  const selectors = [
+    "h3.iw span[email]",
+    "span[email]",
+    ".gD[email]",
+    ".gD",
+    "[data-hovercard-id]",
+    "[aria-label^='From:']",
+    "[data-sender]",
+    ".sender",
+    ".from-address",
+  ];
+
+  for (const selector of selectors) {
+    const elements = document.querySelectorAll(selector);
+    for (const element of elements) {
+      if (!isVisibleElement(element)) {
+        continue;
+      }
+
+      const text = element.getAttribute?.("email")?.trim()
+        || element.innerText?.trim()
+        || element.textContent?.trim()
+        || "";
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return "";
+}
+
+
+function findSubjectText() {
+  const selectors = [
+    "h2.hP",
+    "h2[data-legacy-thread-id]",
+    "h2[data-thread-perm-id]",
+    "[role='main'] h2",
+    "[data-subject]",
+    ".subject",
+    "h1.email-subject",
+  ];
+
+  for (const selector of selectors) {
+    const elements = document.querySelectorAll(selector);
+    for (const element of elements) {
+      if (!isVisibleElement(element)) {
+        continue;
+      }
+
+      const text = element.innerText?.trim() || element.textContent?.trim() || "";
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return document.title || "";
+}
+
+
 // 
 // Email extraction helpers (platform-agnostic stubs)
 // 
@@ -80,11 +261,16 @@ function debounce(fn, delay) {
  * TODO: Detect which email client is active and use the correct extractor.
  */
 function extractEmailFromDOM() {
-  // --- STUB selectors: replace with client-specific, validated selectors ---
-
-  const senderEl  = document.querySelector("[data-sender], .sender, .from-address");
-  const subjectEl = document.querySelector("[data-subject], .subject, h1.email-subject");
-  const bodyEl    = document.querySelector("[data-body], .email-body, .message-body, article");
+  const sender = findSenderText();
+  const subject = findSubjectText();
+  const bodyEl = findBestEmailBodyElement() || getFirstElement([
+    "div.a3s",
+    "[role='listitem'] div[dir='ltr']",
+    "[data-body]",
+    ".email-body",
+    ".message-body",
+    "article",
+  ]);
 
   // If we can't find the basics, this page probably isn't an email view
   if (!bodyEl) return null;
@@ -99,8 +285,8 @@ function extractEmailFromDOM() {
     .filter(href => href.startsWith("http")); // Exclude mailto:, tel:, etc.
 
   return {
-    sender:  senderEl?.innerText?.trim()  ?? "",
-    subject: subjectEl?.innerText?.trim() ?? document.title ?? "",
+    sender:  sender,
+    subject: subject || document.title || "",
     body:    bodyText.trim(),
     links,
   };
@@ -117,27 +303,52 @@ function extractEmailFromDOM() {
  *
  * TODO: Add result.data handling — e.g. show an inline badge on the email.
  */
-function triggerEmailAnalysis() {
+function triggerEmailAnalysis({ force = false } = {}) {
   const emailData = extractEmailFromDOM();
-  if (!emailData) return;
-
-  chrome.runtime.sendMessage({ type: "ANALYZE_EMAIL", payload: emailData }, (response) => {
-    if (chrome.runtime.lastError) {
-      // Service worker may be inactive — this is expected occasionally in MV3
-      console.warn("[unhookd] Background not responding:", chrome.runtime.lastError.message);
-      return;
+  if (!emailData) {
+    if (emailRetryTimer) {
+      clearTimeout(emailRetryTimer);
     }
+    emailRetryTimer = setTimeout(() => triggerEmailAnalysis({ force: true }), 1500);
+    return;
+  }
 
-    if (response?.success) {
-      // TODO: Optionally surface a subtle inline risk indicator on the email UI
-      console.debug("[unhookd] Email analysis complete:", response.data);
-    } else {
-      console.warn("[unhookd] Email analysis failed:", response?.error);
-    }
-  });
+  if (emailRetryTimer) {
+    clearTimeout(emailRetryTimer);
+    emailRetryTimer = null;
+  }
+
+  const fingerprint = buildEmailFingerprint(emailData);
+  const now = Date.now();
+  if (!force && fingerprint === lastEmailFingerprint && (now - lastEmailSentAt) < EMAIL_REPEAT_SUPPRESSION_MS) {
+    return;
+  }
+
+  const sent = safeSendRuntimeMessage({ type: "ANALYZE_EMAIL", payload: emailData });
+
+  if (!sent) {
+    lastEmailSentAt = 0;
+    return;
+  }
+
+  lastEmailFingerprint = fingerprint;
+  lastEmailSentAt = now;
 }
 
 const debouncedEmailAnalysis = debounce(triggerEmailAnalysis, EMAIL_DEBOUNCE_MS);
+
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== "UNHOOKD_SCAN_PAGE") {
+    return false;
+  }
+
+  const emailDetected = Boolean(extractEmailFromDOM());
+  triggerEmailAnalysis();
+  triggerCurrentPageLinkAnalysis();
+  sendResponse({ started: true, emailDetected });
+  return false;
+});
 
 
 // 
@@ -150,6 +361,28 @@ const debouncedEmailAnalysis = debounce(triggerEmailAnalysis, EMAIL_DEBOUNCE_MS)
  * @type {WeakMap<HTMLElement, ReturnType<typeof setTimeout>>}
  */
 const linkHoverTimers = new WeakMap();
+
+
+function triggerLinkAnalysis(url, { force = false } = {}) {
+  if (!url || !url.startsWith("http")) {
+    return;
+  }
+
+  const normalizedUrl = url.trim();
+  const now = Date.now();
+  if (!force && normalizedUrl === lastLinkUrl && (now - lastLinkSentAt) < LINK_REPEAT_SUPPRESSION_MS) {
+    return;
+  }
+
+  const sent = safeSendRuntimeMessage({ type: "ANALYZE_LINK", payload: { url: normalizedUrl } });
+  if (!sent) {
+    lastLinkSentAt = 0;
+    return;
+  }
+
+  lastLinkUrl = normalizedUrl;
+  lastLinkSentAt = now;
+}
 
 /**
  * Handle a mouseenter event on an <a> element.
@@ -164,22 +397,25 @@ function onLinkMouseEnter(event) {
   if (!url || !url.startsWith("http")) return; // Skip non-http links
 
   const timer = setTimeout(() => {
-    chrome.runtime.sendMessage({ type: "ANALYZE_LINK", payload: { url } }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.warn("[unhookd] Background not responding:", chrome.runtime.lastError.message);
-        return;
-      }
-
-      if (response?.success) {
-        // TODO: Show a tooltip / inline badge near the link with the risk score
-        console.debug("[unhookd] Link analysis complete:", response.data);
-      } else {
-        console.warn("[unhookd] Link analysis failed:", response?.error);
-      }
-    });
+    triggerLinkAnalysis(url);
   }, LINK_HOVER_DEBOUNCE_MS);
 
   linkHoverTimers.set(anchor, timer);
+}
+
+/**
+ * Trigger link analysis immediately when a link is clicked.
+ * This is more reliable than hover-only flows on pages with dense dynamic DOMs.
+ *
+ * @param {MouseEvent} event
+ */
+function onLinkClick(event) {
+  const anchor = event.currentTarget;
+  const url = anchor.href;
+
+  if (!url || !url.startsWith("http")) return;
+
+  triggerLinkAnalysis(url, { force: true });
 }
 
 /**
@@ -197,23 +433,82 @@ function onLinkMouseLeave(event) {
   }
 }
 
-/**
- * Attach hover listeners to all <a> elements currently in the DOM.
- * Called once on load and again whenever new nodes are added (MutationObserver).
- *
- * TODO: Use event delegation on document.body instead of per-element listeners
- *       to avoid repeated addEventListener calls on the same element.
- */
-function attachLinkListeners() {
-  const anchors = document.querySelectorAll("a[href]");
-  anchors.forEach(anchor => {
-    // Guard: avoid attaching the same listeners twice
-    if (anchor.dataset.unhookdListening) return;
-    anchor.dataset.unhookdListening = "true";
+function findAnchorFromEventTarget(target) {
+  if (!(target instanceof Element)) {
+    return null;
+  }
 
-    anchor.addEventListener("mouseenter", onLinkMouseEnter);
-    anchor.addEventListener("mouseleave", onLinkMouseLeave);
-  });
+  return target.closest("a[href]");
+}
+
+
+function onDelegatedMouseOver(event) {
+  const anchor = findAnchorFromEventTarget(event.target);
+  if (!anchor) {
+    return;
+  }
+
+  const related = event.relatedTarget;
+  if (related instanceof Node && anchor.contains(related)) {
+    return;
+  }
+
+  onLinkMouseEnter({ currentTarget: anchor });
+}
+
+
+function onDelegatedMouseOut(event) {
+  const anchor = findAnchorFromEventTarget(event.target);
+  if (!anchor) {
+    return;
+  }
+
+  const related = event.relatedTarget;
+  if (related instanceof Node && anchor.contains(related)) {
+    return;
+  }
+
+  onLinkMouseLeave({ currentTarget: anchor });
+}
+
+
+function onDelegatedClick(event) {
+  const anchor = findAnchorFromEventTarget(event.target);
+  if (!anchor) {
+    return;
+  }
+
+  onLinkClick({ currentTarget: anchor });
+}
+
+
+function triggerCurrentPageLinkAnalysis({ force = false } = {}) {
+  const url = window.location.href;
+  const urlChanged = url !== lastObservedPageUrl;
+  if (urlChanged) {
+    lastObservedPageUrl = url;
+  }
+
+  triggerLinkAnalysis(url, { force: force || urlChanged });
+}
+
+
+function patchHistoryForRealtimeLinkAnalysis() {
+  const methods = ["pushState", "replaceState"];
+
+  for (const methodName of methods) {
+    const original = history[methodName];
+    if (typeof original !== "function") {
+      continue;
+    }
+
+    history[methodName] = function (...args) {
+      const result = original.apply(this, args);
+      triggerCurrentPageLinkAnalysis({ force: true });
+      debouncedEmailAnalysis();
+      return result;
+    };
+  }
 }
 
 
@@ -222,11 +517,9 @@ function attachLinkListeners() {
 // 
 
 const observer = new MutationObserver(() => {
-  // Re-attach link listeners on newly added anchor elements
-  attachLinkListeners();
-
   // Re-run email extraction in case new email content appeared
   debouncedEmailAnalysis();
+  triggerCurrentPageLinkAnalysis();
 });
 
 observer.observe(document.body, {
@@ -239,5 +532,32 @@ observer.observe(document.body, {
 // Initial run
 // 
 
-attachLinkListeners();
 debouncedEmailAnalysis();
+patchHistoryForRealtimeLinkAnalysis();
+document.addEventListener("mouseover", onDelegatedMouseOver, true);
+document.addEventListener("mouseout", onDelegatedMouseOut, true);
+document.addEventListener("click", onDelegatedClick, true);
+triggerCurrentPageLinkAnalysis({ force: true });
+
+document.addEventListener("click", () => {
+  debouncedEmailAnalysis();
+}, true);
+
+document.addEventListener("keyup", () => {
+  debouncedEmailAnalysis();
+}, true);
+
+window.addEventListener("focus", () => {
+  debouncedEmailAnalysis();
+  triggerCurrentPageLinkAnalysis();
+});
+
+window.addEventListener("hashchange", () => {
+  triggerCurrentPageLinkAnalysis({ force: true });
+  debouncedEmailAnalysis();
+});
+
+window.addEventListener("popstate", () => {
+  triggerCurrentPageLinkAnalysis({ force: true });
+  debouncedEmailAnalysis();
+});

@@ -2,7 +2,8 @@
 link.py — Rule-based security heuristics for URL / link analysis.
 
 Each check function inspects one dimension of the URL and returns a list of
-flag identifier strings.  Flags are later weighted and summed by scoring.py.
+flag identifier strings. These flags are later passed to the AI layer as
+guideline signals.
 
 Design principles:
   - Each check is a pure function: (url) → List[str]
@@ -12,6 +13,7 @@ Design principles:
 """
 
 import re
+import ipaddress
 from urllib.parse import urlparse
 from typing import List
 
@@ -36,6 +38,8 @@ URL_SHORTENERS: List[str] = [
     "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd",
 ]
 
+BRAND_TOKENS = ["paypal", "microsoft", "google", "apple", "amazon", "bank", "secure", "login"]
+
 
 # ---------------------------------------------------------------------------
 # Individual heuristic checks
@@ -55,8 +59,12 @@ def check_https(url: str) -> List[str]:
 
     # TODO: Also flag non-standard schemes (ftp://, data://, javascript:)
     parsed = urlparse(url)
-    if parsed.scheme.lower() != "https":
+    scheme = (parsed.scheme or "").lower()
+    if scheme != "https":
+        # Flag lack of HTTPS and also flag non-standard schemes
         flags.append("no_https")
+        if scheme in ("ftp", "data", "javascript", "file"):
+            flags.append("non_standard_scheme")
 
     return flags
 
@@ -132,12 +140,14 @@ def check_ip_address_url(url: str) -> List[str]:
     parsed = urlparse(url)
     hostname = parsed.hostname or ""
 
-    # Basic IPv4 pattern — TODO: add IPv6 and encoded IP variants
-    ipv4_pattern = re.compile(
-        r"^(\d{1,3}\.){3}\d{1,3}$"
-    )
-    if ipv4_pattern.match(hostname):
+    # Detect IPv4 or IPv6 using ipaddress module for reliability
+    try:
+        candidate = hostname.strip("[]")
+        ipaddress.ip_address(candidate)
         flags.append("ip_address_url")
+    except Exception:
+        # not an IP address
+        pass
 
     return flags
 
@@ -194,6 +204,29 @@ def check_subdomain_depth(url: str) -> List[str]:
     return flags
 
 
+def check_deceptive_structure(url: str) -> List[str]:
+    """
+    Flag URLs that are structurally deceptive even if the raw domain is not
+    on a denylist.
+    """
+    flags: List[str] = []
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    registered = ".".join(hostname.split(".")[-2:]) if hostname else ""
+
+    if "@" in (parsed.netloc or ""):
+        flags.append("link_domain_mismatch")
+
+    subdomain_only = hostname[:-len(registered)].rstrip(".") if registered and hostname.endswith(registered) else hostname
+    if any(token in subdomain_only for token in BRAND_TOKENS) and not any(token in registered for token in BRAND_TOKENS):
+        flags.append("link_domain_mismatch")
+
+    if len(url) > 120 and re.search(r"(login|verify|account|secure)", url.lower()):
+        flags.append("link_domain_mismatch")
+
+    return flags
+
+
 def check_file_extension(url: str) -> List[str]:
     """
     Detect links pointing directly at potentially dangerous file types.
@@ -235,7 +268,7 @@ def analyze_link(url: str) -> List[str]:
     Run all link heuristic checks and return a deduplicated flag list.
 
     This is the single entry point called by the API route handler.
-    The returned flags are passed to scoring.calculate_link_score().
+    The returned flags are converted into prompt guidance for the AI layer.
 
     Args:
         url: The URL string to analyse.
@@ -251,6 +284,7 @@ def analyze_link(url: str) -> List[str]:
     all_flags.extend(check_ip_address_url(url))
     all_flags.extend(check_url_shortener(url))
     all_flags.extend(check_subdomain_depth(url))
+    all_flags.extend(check_deceptive_structure(url))
     all_flags.extend(check_file_extension(url))
 
     # Deduplicate while preserving insertion order

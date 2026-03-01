@@ -59,13 +59,74 @@
 }
 
 body {
-  width: 360px;
-  min-height: 480px;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  width: 260px;               /* a bit wider when collapsed to avoid overlap */
+  height: 80px;               /* just enough for title and button */
+  background: #00051B;
+  color: #fff;
   font-family: var(--font-body);
   font-size: var(--font-size-base);
   line-height: 1.5;
+  /* no extra padding or border; keep original popup size */
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.expanded {
+  width: 360px;
+  height: 520px;              /* increased height for expanded state */
+}
+
+/* collapsible main content container */
+#mainContent {
+  overflow: hidden;
+  transform-origin: top;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#mainContent.collapsed {
+  transform: scaleY(0);
+}
+/* Fixed height applied when expanded */
+#mainContent.fixed-height {
+  height: 520px;                /* match expanded height for tab animations */
+}
+
+/* 
+   Toggle Button
+ */
+
+.toggle-btn {
+  position: fixed;
+  top: var(--space-md);
+  left: var(--space-md);           /* left aligned */
+  padding: 10px 16px;
+  background-color: white;
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 999;
+  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
+}
+
+.toggle-btn:hover {
+  background-color: #00ebcc;
+  color: #fff;
+  box-shadow: #00ebcc 0px 7px 29px 0px;
+}
+
+.toggle-btn:active {
+  transform: scale(0.98);
+}
+
+/* Red styling for STOP state */
+.toggle-btn.stop-state:hover {
+  background-color: #dc2626;
+  box-shadow: #dc2626 0px 7px 29px 0px;
 }
 
 /* 
@@ -78,26 +139,39 @@ body {
   padding: var(--space-md) var(--space-lg);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
 }
 
+.app-FullLogoheader {
+  display: flex;
+  justify-content: space-between;  /* button left, logo right */
+  align-items: center;
+  width: 100%;                   /* ensure it spans bar */
+  padding: 0 var(--space-lg);    /* more right margin to push title further right */
+}
+
+.logo-img {
+  margin-left: auto;            /* ensure image sticks to right edge */
+}
+
+.logo-img {
+  height: 70px;
+  width: auto;
+  object-fit: contain;
+}
+
 .logo-mark {
-  font-size: var(--font-size-lg);
-  line-height: 1;
+  display: none;
 }
 
 .app-title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  letter-spacing: -0.3px;
+  display: none;
 }
 
 .app-tagline {
-  width: 100%;
-  font-size: var(--font-size-xs);
-  opacity: 0.85;
-  margin-top: -4px;
+  display: none;
 }
 
 /* 
@@ -106,10 +180,15 @@ body {
 
 .tab-bar {
   display: flex;
-  border-bottom: 2px solid var(--color-border);
-  background-color: var(--color-surface);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  background-color: transparent;
+  margin-top: 10px;
 }
-
+.tab-btn {
+  flex: 1;
+  width: 50%;          /* keep each tab the same size */
+  min-width: 0;        /* allow shrinking if needed */
+} 
 .tab-btn {
   flex: 1;
   padding: var(--space-sm) var(--space-md);
@@ -118,19 +197,19 @@ body {
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: color 0.15s, border-bottom-color 0.15s;
   border-bottom: 3px solid transparent;
-  margin-bottom: -2px;   /* Overlap the tab-bar bottom border */
+  margin-bottom: -2px;
 }
 
 .tab-btn:hover {
-  color: var(--color-accent);
+  color: #fff;
 }
 
 .tab-btn--active {
-  color: var(--color-accent);
+  color: #fff;
   border-bottom-color: var(--color-accent);
 }
 
@@ -143,11 +222,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  overflow: hidden;
+  max-height: 1000px; /* large enough for content */
+  width: 100%;       /* always fill available width */
 }
 
 .result-panel--hidden {
-  display: none;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  /* keep flex layout but collapse height */
 }
+
 
 /* 
    Score display
@@ -162,13 +248,13 @@ body {
 .score-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   flex: 1;
 }
 
-.score-value {
+.severity-value {
   font-size: var(--font-size-xl);
   font-weight: 800;
   line-height: 1;
@@ -176,16 +262,15 @@ body {
   transition: color 0.3s;
 }
 
-/* Risk-level colour overrides for score */
-.score--low      { color: var(--color-low);      }
-.score--medium   { color: var(--color-medium);   }
-.score--high     { color: var(--color-high);     }
-.score--critical { color: var(--color-critical); }
-.score--unknown  { color: var(--color-unknown);  }
+/* Severity colour overrides */
+.severity--low      { color: var(--color-low);      }
+.severity--medium   { color: var(--color-medium);   }
+.severity--high     { color: var(--color-high);     }
+.severity--unknown  { color: var(--color-unknown);  }
 
 .score-suffix {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: #fff;
 }
 
 /* 
@@ -226,7 +311,7 @@ body {
 .section-title {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -241,21 +326,21 @@ body {
 
 .flag-item {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #fff;
   padding: var(--space-xs) var(--space-sm);
-  background-color: var(--color-surface);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-high);
 }
 
 .flag-item--empty,
 .flag-item--clean {
-  color: var(--color-text-muted);
-  border-left-color: var(--color-border);
+  color: rgba(255, 255, 255, 0.7);
+  border-left-color: rgba(255, 255, 255, 0.3);
 }
 
 .flag-item--clean {
-  color: var(--color-low);
+  color: #fff;
   border-left-color: var(--color-low);
 }
 
@@ -264,37 +349,37 @@ body {
 .tip-text,
 .url-display {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #fff;
   line-height: 1.6;
-  background-color: var(--color-surface);
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-sm);
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .url-display {
   word-break: break-all;
   font-family: monospace;
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Tip section — slightly different background to distinguish it visually */
 .section--tip {
-  background-color: #eef2ff;
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
   padding: var(--space-sm);
 }
 
 .section--tip .section-title {
-  color: var(--color-accent);
+  color: #fff;
 }
 
 .section--tip .tip-text {
   background: transparent;
   border: none;
   padding: 0;
-  color: #1e3a8a;
+  color: #fff;
 }
 
 /* 
@@ -303,11 +388,17 @@ body {
 
 .app-footer {
   padding: var(--space-sm) var(--space-lg);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: auto;
 }
 
 .app-footer p {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
 }
