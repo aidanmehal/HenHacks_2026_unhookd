@@ -30,16 +30,12 @@
  */
 function getSeverityMeta(severity) {
   switch ((severity || "").toLowerCase()) {
-    case "no_risk":
-      return { label: "No Risk", cssClass: "badge--low" };
     case "low":
       return { label: "Low Risk", cssClass: "badge--low" };
     case "medium":
       return { label: "Medium Risk", cssClass: "badge--medium" };
     case "high":
       return { label: "High Risk", cssClass: "badge--high" };
-    case "critical":
-      return { label: "Critical Risk", cssClass: "badge--critical" };
     default:
       return { label: "Unknown", cssClass: "badge--unknown" };
   }
@@ -280,30 +276,6 @@ function renderStoredResults(stored) {
   });
 }
 
-function triggerScanFromPopup() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const activeTab = tabs?.[0];
-    if (!activeTab?.id) {
-      console.warn("[unhookd] No active tab is available for scanning.");
-      return;
-    }
-
-    chrome.tabs.sendMessage(activeTab.id, { type: "SCAN_CURRENT_PAGE" }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.warn("[unhookd] Could not reach content script:", chrome.runtime.lastError.message);
-        return;
-      }
-
-      if (!response?.success) {
-        console.warn("[unhookd] Scan request failed:", response?.error);
-        return;
-      }
-
-      console.debug("[unhookd] Manual scan requested:", response.data);
-    });
-  });
-}
-
 
 //
 // Initialisation — runs when popup DOM is ready
@@ -315,20 +287,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const mainContent = document.getElementById("mainContent");
   let isExpanded = false;
 
-  if (floatingStartBtn) {
-    floatingStartBtn.addEventListener("click", () => {
-      mainContent.style.display = "block";
-      floatingStartBtn.style.display = "none";
-      document.body.classList.add("button-hidden");
-      triggerScanFromPopup();
-    });
-  }
-
-  if (stopBtn) {
-    stopBtn.addEventListener("click", () => {
-      mainContent.style.display = "none";
-      floatingStartBtn.style.display = "block";
-      document.body.classList.remove("button-hidden");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      isExpanded = !isExpanded;
+      if (isExpanded) {
+        toggleBtn.textContent = "STOP";
+        toggleBtn.classList.add("stop-state");
+        document.body.classList.add("expanded");
+        mainContent.classList.add("fixed-height");
+        animateCollapse(mainContent, true);
+        document.body.classList.add("button-hidden");
+      } else {
+        toggleBtn.textContent = "GO PHISH";
+        toggleBtn.classList.remove("stop-state");
+        animateCollapse(mainContent, false);
+        mainContent.classList.remove("fixed-height");
+        document.body.classList.remove("expanded");
+        document.body.classList.remove("button-hidden");
+      }
     });
   }
 

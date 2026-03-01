@@ -106,56 +106,6 @@ function extractEmailFromDOM() {
   };
 }
 
-/**
- * Trigger a one-shot scan for the current page.
- *
- * This is used by popup.js so the extension can be tested on ordinary pages
- * without waiting for hover events or client-specific email selectors.
- *
- * Returns:
- *   - email scan if the page looks like an email view
- *   - link scan using the current page URL if it is http(s)
- */
-function scanCurrentPageNow() {
-  const emailData = extractEmailFromDOM();
-  if (emailData) {
-    chrome.runtime.sendMessage({ type: "ANALYZE_EMAIL", payload: emailData }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.warn("[unhookd] Background not responding:", chrome.runtime.lastError.message);
-        return;
-      }
-
-      if (response?.success) {
-        console.debug("[unhookd] Email analysis complete:", response.data);
-      } else {
-        console.warn("[unhookd] Email analysis failed:", response?.error);
-      }
-    });
-  }
-
-  const pageUrl = window.location.href;
-  if (pageUrl && pageUrl.startsWith("http")) {
-    chrome.runtime.sendMessage({ type: "ANALYZE_LINK", payload: { url: pageUrl } }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.warn("[unhookd] Background not responding:", chrome.runtime.lastError.message);
-        return;
-      }
-
-      if (response?.success) {
-        console.debug("[unhookd] Link analysis complete:", response.data);
-      } else {
-        console.warn("[unhookd] Link analysis failed:", response?.error);
-      }
-    });
-  }
-
-  return {
-    attemptedEmail: Boolean(emailData),
-    attemptedLink: Boolean(pageUrl && pageUrl.startsWith("http")),
-    scannedUrl: pageUrl && pageUrl.startsWith("http") ? pageUrl : null,
-  };
-}
-
 
 // 
 // Email analysis trigger
@@ -265,20 +215,6 @@ function attachLinkListeners() {
     anchor.addEventListener("mouseleave", onLinkMouseLeave);
   });
 }
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type !== "SCAN_CURRENT_PAGE") {
-    return false;
-  }
-
-  try {
-    sendResponse({ success: true, data: scanCurrentPageNow() });
-  } catch (error) {
-    sendResponse({ success: false, error: error.message });
-  }
-
-  return true;
-});
 
 
 // 
