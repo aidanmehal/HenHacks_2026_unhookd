@@ -20,12 +20,15 @@
   },
 
   "action": {
+    "default_icon": "images/logo.svg",
     "default_popup": "popup.html",
     "default_title": "unhookd — Security Scanner"
   },
 
   "side_panel": {
-    "default_path": "sidebar/sidebar.html"
+    "default_path": "sidebar/sidebar.html",
+    "default_icon": "images/logo.svg",
+    "default_title": "unhookd"
   },
 
   "content_scripts": [
