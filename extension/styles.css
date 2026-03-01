@@ -68,6 +68,8 @@ body {
   line-height: 1.5;
   padding: 10px 30px 30px 30px;
   border: 2px solid white;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 
@@ -355,6 +357,7 @@ body {
   flex-direction: column;
   gap: var(--space-sm);
   align-items: center;
+  margin-top: auto;
 }
 
 .app-footer p {
