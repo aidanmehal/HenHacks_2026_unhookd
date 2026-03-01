@@ -223,7 +223,6 @@ body.expanded {
   flex-direction: column;
   gap: var(--space-md);
   overflow: hidden;
-  transition: max-height 0.3s ease;
   max-height: 1000px; /* large enough for content */
   width: 100%;       /* always fill available width */
 }

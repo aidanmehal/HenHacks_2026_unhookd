@@ -160,35 +160,13 @@ function escapeHtml(str) {
 
 /**
  * Wire up the Email / Link tab buttons to show/hide the correct panel.
+ * Instant swap with no animation.
  */
 function animatePanel(panel, show) {
   if (show) {
     panel.classList.remove("result-panel--hidden");
-    // start from zero to measured height
-    panel.style.maxHeight = "0px";
-    // force a reflow
-    panel.getBoundingClientRect();
-    panel.style.maxHeight = panel.scrollHeight + "px";
-    panel.addEventListener(
-      "transitionend",
-      () => {
-        panel.style.maxHeight = ""; // reset to auto
-      },
-      { once: true }
-    );
   } else {
-    panel.style.maxHeight = panel.scrollHeight + "px";
-    // trigger layout
-    panel.getBoundingClientRect();
-    panel.style.maxHeight = "0px";
-    panel.addEventListener(
-      "transitionend",
-      () => {
-        panel.classList.add("result-panel--hidden");
-        panel.style.maxHeight = "";
-      },
-      { once: true }
-    );
+    panel.classList.add("result-panel--hidden");
   }
 }
 
