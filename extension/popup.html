@@ -10,8 +10,8 @@
 
   <!--        Header
    -->
-  <header class="app-header">
-    <img src="extension/images/logo.png" alt="unhookd" class="logo-img" />
+  <header class="app-FullLogoheader">
+    <img src="images/FullLogo.svg" alt="" class="logo-img" />
   </header>
 
   <!--        Floating Start button (top-left)
@@ -45,10 +45,11 @@
    -->
   <section id="panel-email" class="result-panel" role="tabpanel" aria-labelledby="tab-email">
 
-    <!-- Severity -->
+    <!-- Risk score -->
     <div class="score-row">
-      <span class="score-label">Severity</span>
-      <span class="severity-value severity--unknown" id="email-severity">Waiting</span>
+      <span class="score-label">Risk Score</span>
+      <span class="score-value" id="email-score">--</span>
+      <span class="score-suffix">/ 100</span>
     </div>
 
     <!-- Risk level badge -->
@@ -92,10 +93,11 @@
       <p class="url-display" id="link-url">Hover over a link to scan it</p>
     </div>
 
-    <!-- Severity -->
+    <!-- Risk score -->
     <div class="score-row">
-      <span class="score-label">Severity</span>
-      <span class="severity-value severity--unknown" id="link-severity">Waiting</span>
+      <span class="score-label">Risk Score</span>
+      <span class="score-value" id="link-score">--</span>
+      <span class="score-suffix">/ 100</span>
     </div>
 
     <!-- Risk level badge -->
