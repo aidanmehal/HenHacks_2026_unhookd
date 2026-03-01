@@ -30,12 +30,16 @@
  */
 function getSeverityMeta(severity) {
   switch ((severity || "").toLowerCase()) {
+    case "no_risk":
+      return { label: "No Risk", cssClass: "badge--low" };
     case "low":
       return { label: "Low Risk", cssClass: "badge--low" };
     case "medium":
       return { label: "Medium Risk", cssClass: "badge--medium" };
     case "high":
       return { label: "High Risk", cssClass: "badge--high" };
+    case "critical":
+      return { label: "Critical Risk", cssClass: "badge--critical" };
     default:
       return { label: "Unknown", cssClass: "badge--unknown" };
   }
@@ -197,6 +201,30 @@ function renderStoredResults(stored) {
   });
 }
 
+function triggerScanFromPopup() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const activeTab = tabs?.[0];
+    if (!activeTab?.id) {
+      console.warn("[unhookd] No active tab is available for scanning.");
+      return;
+    }
+
+    chrome.tabs.sendMessage(activeTab.id, { type: "SCAN_CURRENT_PAGE" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn("[unhookd] Could not reach content script:", chrome.runtime.lastError.message);
+        return;
+      }
+
+      if (!response?.success) {
+        console.warn("[unhookd] Scan request failed:", response?.error);
+        return;
+      }
+
+      console.debug("[unhookd] Manual scan requested:", response.data);
+    });
+  });
+}
+
 
 //
 // Initialisation — runs when popup DOM is ready
@@ -213,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
       mainContent.style.display = "block";
       floatingStartBtn.style.display = "none";
       document.body.classList.add("button-hidden");
+      triggerScanFromPopup();
     });
   }
 
