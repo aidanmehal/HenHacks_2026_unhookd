@@ -59,54 +59,74 @@
 }
 
 body {
-  width: 360px;
-  min-height: 560px;
+  width: 260px;               /* a bit wider when collapsed to avoid overlap */
+  height: 80px;               /* just enough for title and button */
   background: #00051B;
   color: #fff;
   font-family: var(--font-body);
   font-size: var(--font-size-base);
   line-height: 1.5;
-  padding: 10px 30px 30px 30px;
-  border: 2px solid white;
+  /* no extra padding or border; keep original popup size */
   display: flex;
   flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.expanded {
+  width: 360px;
+  height: 520px;              /* increased height for expanded state */
+}
+
+/* collapsible main content container */
+#mainContent {
+  overflow: hidden;
+  transform-origin: top;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#mainContent.collapsed {
+  transform: scaleY(0);
+}
+/* Fixed height applied when expanded */
+#mainContent.fixed-height {
+  height: 520px;                /* match expanded height for tab animations */
 }
 
 /* 
-   Floating Start button
+   Toggle Button
  */
 
-.floating-start-btn {
-  display: block;
-  margin: 10px auto 0;
-  padding: 17px 40px;
-  border-radius: 50px;
-  cursor: pointer;
-  border: 0;
+.toggle-btn {
+  position: fixed;
+  top: var(--space-md);
+  left: var(--space-md);           /* left aligned */
+  padding: 10px 16px;
   background-color: white;
-  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  font-size: 15px;
-  transition: all 0.5s ease;
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
   font-family: var(--font-body);
+  font-size: var(--font-size-sm);
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 999;
+  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
 }
 
-.floating-start-btn:hover {
-  letter-spacing: 3px;
+.toggle-btn:hover {
   background-color: #00ebcc;
-  color: hsl(0, 0%, 100%);
+  color: #fff;
   box-shadow: #00ebcc 0px 7px 29px 0px;
 }
 
-.floating-start-btn:active {
-  letter-spacing: 3px;
-  background-color: #00ebcc;
-  color: hsl(0, 0%, 100%);
-  box-shadow: #00ebcc 0px 0px 0px 0px;
-  transform: translateY(10px);
-  transition: 100ms;
+.toggle-btn:active {
+  transform: scale(0.98);
+}
+
+/* Red styling for STOP state */
+.toggle-btn.stop-state:hover {
+  background-color: #dc2626;
+  box-shadow: #dc2626 0px 7px 29px 0px;
 }
 
 /* 
@@ -126,8 +146,14 @@ body {
 
 .app-FullLogoheader {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;  /* button left, logo right */
   align-items: center;
+  width: 100%;                   /* ensure it spans bar */
+  padding: 0 var(--space-lg);    /* more right margin to push title further right */
+}
+
+.logo-img {
+  margin-left: auto;            /* ensure image sticks to right edge */
 }
 
 .logo-img {
@@ -158,7 +184,11 @@ body {
   background-color: transparent;
   margin-top: 10px;
 }
-
+.tab-btn {
+  flex: 1;
+  width: 50%;          /* keep each tab the same size */
+  min-width: 0;        /* allow shrinking if needed */
+} 
 .tab-btn {
   flex: 1;
   padding: var(--space-sm) var(--space-md);
@@ -192,11 +222,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  max-height: 1000px; /* large enough for content */
+  width: 100%;       /* always fill available width */
 }
 
 .result-panel--hidden {
-  display: none;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  /* keep flex layout but collapse height */
 }
+
 
 /* 
    Score display
@@ -366,33 +404,5 @@ body {
   margin: 0;
 }
 
-.stop-btn {
-  padding: 10px 24px;
-  border-radius: 50px;
-  cursor: pointer;
-  border: 0;
-  background-color: white;
-  box-shadow: rgb(0 0 0 / 5%) 0 0 8px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  font-size: 12px;
-  transition: all 0.5s ease;
-  font-family: var(--font-body);
-  font-weight: 600;
-}
 
-.stop-btn:hover {
-  letter-spacing: 3px;
-  background-color: #dc2626;
-  color: hsl(0, 0%, 100%);
-  box-shadow: #dc2626 0px 7px 29px 0px;
-}
-
-.stop-btn:active {
-  letter-spacing: 3px;
-  background-color: #dc2626;
-  color: hsl(0, 0%, 100%);
-  box-shadow: #dc2626 0px 0px 0px 0px;
-  transform: translateY(10px);
-  transition: 100ms;
 }

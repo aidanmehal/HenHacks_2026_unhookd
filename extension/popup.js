@@ -140,11 +140,90 @@ function escapeHtml(str) {
 /**
  * Wire up the Email / Link tab buttons to show/hide the correct panel.
  */
+function animatePanel(panel, show) {
+  if (show) {
+    panel.classList.remove("result-panel--hidden");
+    // start from zero to measured height
+    panel.style.maxHeight = "0px";
+    // force a reflow
+    panel.getBoundingClientRect();
+    panel.style.maxHeight = panel.scrollHeight + "px";
+    panel.addEventListener(
+      "transitionend",
+      () => {
+        panel.style.maxHeight = ""; // reset to auto
+      },
+      { once: true }
+    );
+  } else {
+    panel.style.maxHeight = panel.scrollHeight + "px";
+    // trigger layout
+    panel.getBoundingClientRect();
+    panel.style.maxHeight = "0px";
+    panel.addEventListener(
+      "transitionend",
+      () => {
+        panel.classList.add("result-panel--hidden");
+        panel.style.maxHeight = "";
+      },
+      { once: true }
+    );
+  }
+}
+
+// generic collapsible animator for main content using scale so height remains unchanged
+function animateCollapse(el, show, callback) {
+  const isMain = el.id === "mainContent";
+  if (isMain) {
+    if (show) {
+      el.classList.remove("collapsed");
+    } else {
+      el.classList.add("collapsed");
+    }
+    if (callback) {
+      el.addEventListener(
+        "transitionend",
+        function handler() {
+          el.removeEventListener("transitionend", handler);
+          callback();
+        }
+      );
+    }
+  } else {
+    // fallback to previous behaviour for other elements
+    if (show) {
+      el.classList.remove("result-panel--hidden");
+      el.style.maxHeight = "0px";
+      el.getBoundingClientRect();
+      el.style.maxHeight = el.scrollHeight + "px";
+      el.addEventListener(
+        "transitionend",
+        () => {
+          el.style.maxHeight = "";
+        },
+        { once: true }
+      );
+    } else {
+      el.style.maxHeight = el.scrollHeight + "px";
+      el.getBoundingClientRect();
+      el.style.maxHeight = "0px";
+      el.addEventListener(
+        "transitionend",
+        () => {
+          el.classList.add("result-panel--hidden");
+          el.style.maxHeight = "";
+        },
+        { once: true }
+      );
+    }
+  }
+}
+
 function initTabs() {
-  const emailTab  = document.getElementById("tab-email");
-  const linkTab   = document.getElementById("tab-link");
+  const emailTab = document.getElementById("tab-email");
+  const linkTab = document.getElementById("tab-link");
   const emailPanel = document.getElementById("panel-email");
-  const linkPanel  = document.getElementById("panel-link");
+  const linkPanel = document.getElementById("panel-link");
 
   emailTab.addEventListener("click", () => {
     emailTab.classList.add("tab-btn--active");
@@ -152,8 +231,8 @@ function initTabs() {
     linkTab.classList.remove("tab-btn--active");
     linkTab.setAttribute("aria-selected", "false");
 
-    emailPanel.classList.remove("result-panel--hidden");
-    linkPanel.classList.add("result-panel--hidden");
+    animatePanel(emailPanel, true);
+    animatePanel(linkPanel, false);
   });
 
   linkTab.addEventListener("click", () => {
@@ -162,8 +241,8 @@ function initTabs() {
     emailTab.classList.remove("tab-btn--active");
     emailTab.setAttribute("aria-selected", "false");
 
-    linkPanel.classList.remove("result-panel--hidden");
-    emailPanel.classList.add("result-panel--hidden");
+    animatePanel(linkPanel, true);
+    animatePanel(emailPanel, false);
   });
 }
 
@@ -203,24 +282,29 @@ function renderStoredResults(stored) {
 //
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Handle floating Start button click
-  const floatingStartBtn = document.getElementById("floatingStartBtn");
-  const stopBtn = document.getElementById("stopBtn");
+  // Handle toggle button
+  const toggleBtn = document.getElementById("toggleBtn");
   const mainContent = document.getElementById("mainContent");
+  let isExpanded = false;
 
-  if (floatingStartBtn) {
-    floatingStartBtn.addEventListener("click", () => {
-      mainContent.style.display = "block";
-      floatingStartBtn.style.display = "none";
-      document.body.classList.add("button-hidden");
-    });
-  }
-
-  if (stopBtn) {
-    stopBtn.addEventListener("click", () => {
-      mainContent.style.display = "none";
-      floatingStartBtn.style.display = "block";
-      document.body.classList.remove("button-hidden");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      isExpanded = !isExpanded;
+      if (isExpanded) {
+        toggleBtn.textContent = "STOP";
+        toggleBtn.classList.add("stop-state");
+        document.body.classList.add("expanded");
+        mainContent.classList.add("fixed-height");
+        animateCollapse(mainContent, true);
+        document.body.classList.add("button-hidden");
+      } else {
+        toggleBtn.textContent = "GO PHISH";
+        toggleBtn.classList.remove("stop-state");
+        animateCollapse(mainContent, false);
+        mainContent.classList.remove("fixed-height");
+        document.body.classList.remove("expanded");
+        document.body.classList.remove("button-hidden");
+      }
     });
   }
 
