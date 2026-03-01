@@ -38,12 +38,26 @@ class EmailAnalysisRequest(BaseModel):
     @field_validator("sender")
     @classmethod
     def validate_sender_basic(cls, v: str) -> str:
-        # Lightweight validation without requiring the external
-        # `email-validator` package. This ensures the field looks
-        # like an email address (basic) and is non-empty.
-        if not isinstance(v, str) or not v.strip():
-            raise ValueError("sender must be a non-empty string")
+        # Content extraction in browser email clients is often partial.
+        # Accept empty / display-name sender values so analysis can still run.
+        if not isinstance(v, str):
+            raise ValueError("sender must be a string")
         v = v.strip()
+        if not v:
+            return "unknown@unknown.local"
+
+        # Extract an address from common display-name formats like:
+        # "Acme Support <support@example.com>"
+        match = re.search(r"([^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)", v)
+        if match:
+            return match.group(1).strip()
+
+        # If there is no email-like token, keep a deterministic placeholder
+        # so downstream heuristics still receive a valid sender field.
+        if "@" not in v:
+            local_part = re.sub(r"[^a-z0-9]+", ".", v.lower()).strip(".") or "unknown"
+            return f"{local_part}@unknown.local"
+
         # Simple regex to check for local@domain structure
         if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
             raise ValueError("sender must be a valid email-like address")

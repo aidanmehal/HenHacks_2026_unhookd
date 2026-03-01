@@ -27,6 +27,29 @@
 const API_BASE_URL = "http://localhost:8000";
 
 
+function buildFallbackResult(kind, error, context = {}) {
+  const message = error instanceof Error ? error.message : String(error || "Unknown error");
+  const explanation = `The ${kind} scan could not reach the backend, so no live analysis was completed. ${message}`;
+
+  if (kind === "email") {
+    return {
+      severity: "medium",
+      flags: ["Backend unavailable"],
+      ai_explanation: explanation,
+      education_tip: "Check that the API server is running on http://localhost:8000, then reload the extension page.",
+      ...context,
+    };
+  }
+
+  return {
+    severity: "medium",
+    flags: ["Backend unavailable"],
+    ai_explanation: explanation,
+    ...context,
+  };
+}
+
+
 // 
 // Message handler — listens to messages from content.js
 // 
@@ -119,11 +142,17 @@ async function fetchWithRetry(url, options = {}, { timeout = 5000, retries = 1 }
 }
 
 async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
-  const result = await fetchWithRetry(`${API_BASE_URL}/analyze/email`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sender, subject, body, links }),
-  }, { timeout: 7000, retries: 1 });
+  let result;
+
+  try {
+    result = await fetchWithRetry(`${API_BASE_URL}/analyze/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender, subject, body, links }),
+    }, { timeout: 7000, retries: 1 });
+  } catch (error) {
+    result = buildFallbackResult("email", error);
+  }
 
   await chrome.storage.local.set({ latestEmailResult: result });
 
@@ -136,33 +165,20 @@ async function handleEmailAnalysis({ sender, subject, body, links = [] }) {
  * @param {Object} payload
  * @param {string} payload.url  - The URL to analyse.
  * @returns {Promise<Object>}    Parsed JSON from /analyze/link.
- *
- * TODO: Debounce rapid link-hover events to avoid flooding the API.
  */
-// Debounce wrapper for rapid hover events
-function debounce(fn, wait) {
-  let t = null;
-  return function (...args) {
-    if (t) clearTimeout(t);
-    return new Promise((resolve, reject) => {
-      t = setTimeout(async () => {
-        try {
-          const r = await fn.apply(this, args);
-          resolve(r);
-        } catch (e) {
-          reject(e);
-        }
-      }, wait);
-    });
-  };
-}
 
 async function _doHandleLinkAnalysis({ url }) {
-  const result = await fetchWithRetry(`${API_BASE_URL}/analyze/link`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
-  }, { timeout: 5000, retries: 1 });
+  let result;
+
+  try {
+    result = await fetchWithRetry(`${API_BASE_URL}/analyze/link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }, { timeout: 5000, retries: 1 });
+  } catch (error) {
+    result = buildFallbackResult("link", error);
+  }
 
   await chrome.storage.local.set({
     latestLinkResult: result,
@@ -172,4 +188,4 @@ async function _doHandleLinkAnalysis({ url }) {
   return result;
 }
 
-const handleLinkAnalysis = debounce(_doHandleLinkAnalysis, 150);
+const handleLinkAnalysis = _doHandleLinkAnalysis;

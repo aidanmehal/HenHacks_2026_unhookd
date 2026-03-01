@@ -63,6 +63,31 @@ function debounce(fn, delay) {
 }
 
 
+function getTextFromSelectors(selectors) {
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    const text = el?.innerText?.trim() || el?.textContent?.trim() || "";
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
+
+function getFirstElement(selectors) {
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    if (el) {
+      return el;
+    }
+  }
+
+  return null;
+}
+
+
 // 
 // Email extraction helpers (platform-agnostic stubs)
 // 
@@ -80,11 +105,32 @@ function debounce(fn, delay) {
  * TODO: Detect which email client is active and use the correct extractor.
  */
 function extractEmailFromDOM() {
-  // --- STUB selectors: replace with client-specific, validated selectors ---
-
-  const senderEl  = document.querySelector("[data-sender], .sender, .from-address");
-  const subjectEl = document.querySelector("[data-subject], .subject, h1.email-subject");
-  const bodyEl    = document.querySelector("[data-body], .email-body, .message-body, article");
+  const sender = getTextFromSelectors([
+    "[email]",
+    "[data-hovercard-id]",
+    "[data-sender]",
+    ".gD",
+    ".go",
+    ".sender",
+    ".from-address",
+    "[aria-label^='From:']",
+  ]);
+  const subject = getTextFromSelectors([
+    "h2[data-thread-perm-id]",
+    "h2.hP",
+    "[data-subject]",
+    ".subject",
+    "h1.email-subject",
+    "title",
+  ]);
+  const bodyEl = getFirstElement([
+    "div.a3s",
+    "[role='listitem'] div[dir='ltr']",
+    "[data-body]",
+    ".email-body",
+    ".message-body",
+    "article",
+  ]);
 
   // If we can't find the basics, this page probably isn't an email view
   if (!bodyEl) return null;
@@ -99,8 +145,8 @@ function extractEmailFromDOM() {
     .filter(href => href.startsWith("http")); // Exclude mailto:, tel:, etc.
 
   return {
-    sender:  senderEl?.innerText?.trim()  ?? "",
-    subject: subjectEl?.innerText?.trim() ?? document.title ?? "",
+    sender:  sender,
+    subject: subject || document.title || "",
     body:    bodyText.trim(),
     links,
   };
@@ -138,6 +184,21 @@ function triggerEmailAnalysis() {
 }
 
 const debouncedEmailAnalysis = debounce(triggerEmailAnalysis, EMAIL_DEBOUNCE_MS);
+
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== "UNHOOKD_SCAN_PAGE") {
+    return false;
+  }
+
+  const emailData = extractEmailFromDOM();
+  if (emailData) {
+    chrome.runtime.sendMessage({ type: "ANALYZE_EMAIL", payload: emailData });
+  }
+
+  sendResponse({ started: true, emailDetected: Boolean(emailData) });
+  return false;
+});
 
 
 // 

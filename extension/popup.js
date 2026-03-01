@@ -277,6 +277,32 @@ function renderStoredResults(stored) {
 }
 
 
+async function primeAnalysis() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const activeTab = tabs[0];
+    if (!activeTab?.id) {
+      return;
+    }
+
+    if (typeof activeTab.url === "string" && activeTab.url.startsWith("http")) {
+      chrome.runtime.sendMessage({
+        type: "ANALYZE_LINK",
+        payload: { url: activeTab.url },
+      });
+    }
+
+    chrome.tabs.sendMessage(activeTab.id, { type: "UNHOOKD_SCAN_PAGE" }, () => {
+      if (chrome.runtime.lastError) {
+        console.debug("[unhookd] Unable to trigger page scan:", chrome.runtime.lastError.message);
+      }
+    });
+  } catch (err) {
+    console.warn("[unhookd] Failed to prime analysis:", err);
+  }
+}
+
+
 //
 // Initialisation — runs when popup DOM is ready
 //
@@ -315,6 +341,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   initTabs();
+
+  primeAnalysis();
 
   // Read the latest cached results written by background.js
   chrome.storage.local.get(["latestEmailResult", "latestLinkResult", "latestLinkUrl"], renderStoredResults);
