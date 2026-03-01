@@ -74,7 +74,7 @@ function renderPanel({ severityId, badgeId, flagsId, explanationId, tipId = null
 
   if (!data) {
     // No cached result available — show default "waiting" state
-    severityEl.textContent    = "Waiting";
+    severityEl.textContent    = "Waiting...";
     severityEl.className      = "severity-value severity--unknown";
     badgeEl.textContent       = "No scan yet";
     badgeEl.className         = "risk-badge badge--unknown";
@@ -296,8 +296,8 @@ document.addEventListener("DOMContentLoaded", () => {
           if (sidebarOpen) {
             // Open the sidebar panel
             await chrome.sidePanel.open({ tabId: tab[0].id });
-            toggleBtn.textContent = "STOP";
-            toggleBtn.classList.add("stop-state");
+            // Close the popup after opening sidebar
+            window.close();
           } else {
             // Close the sidebar panel by disabling it
             await chrome.sidePanel.setOptions({

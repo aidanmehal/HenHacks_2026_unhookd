@@ -71,7 +71,7 @@ function renderPanel({ severityId, badgeId, flagsId, explanationId, tipId = null
 
   if (!data) {
     // No cached result available — show default "waiting" state
-    severityEl.textContent    = "Waiting";
+    severityEl.textContent    = "Waiting...";
     severityEl.className      = "severity-value severity--unknown";
     badgeEl.textContent       = "No scan yet";
     badgeEl.className         = "risk-badge badge--unknown";
