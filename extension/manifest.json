@@ -20,7 +20,8 @@
 
   "action": {
     "default_popup": "popup.html",
-    "default_title": "unhookd — Security Scanner"
+    "default_title": "unhookd — Security Scanner",
+    "default_icon": "images/logo.png"
   },
 
   "content_scripts": [
