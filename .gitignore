@@ -3,7 +3,6 @@
 
 __pycache__/
 *.py[cod]
-*.csx
 *.pyo
 *.pyd
 *.egg
@@ -57,4 +56,3 @@ yarn.lock
 
 extension/dist/
 extension/*.zip
-.crx
