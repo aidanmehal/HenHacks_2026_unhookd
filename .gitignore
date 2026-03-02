@@ -56,3 +56,4 @@ yarn.lock
 
 extension/dist/
 extension/*.zip
+*.crx
