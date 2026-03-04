@@ -6,61 +6,55 @@ unhookd is a Chrome extension that analyses email content and web links as you b
 
 ---
 
-## How It Works
+## Overview
+
+The extension sends email metadata or URLs to the backend, which analyzes them using deterministic heuristics and optionally generates plain-English explanations via Gemini. All risk classification is rule-based—AI is used only for explanations and tips. No user data is stored.
+
+**Architecture:**
 
 ```
-Chrome Extension (content.js)
-        |
-        | extracts email text / detects hovered links
-        v
+Content Script (content.js)
+   ↓ extracts email / detects links / monitors downloads
 Background Service Worker (background.js)
-        |
-        | POST /analyze/email  or  POST /analyze/link
-        v
+   ↓ relays to backend
 FastAPI Backend (Python)
-        |
-        |-- analysis/email.py   rule-based phishing heuristics
-        |-- analysis/link.py    URL safety heuristics
-        |-- utils/scoring.py    weighted flag  0-100 risk score
-        |-- ai/gemini.py        Gemini API (explanation + tip only)
-        v
-JSON response    background.js    popup.html
+   ├── analysis/email.py       → phishing heuristics
+   ├── analysis/link.py        → URL/domain checks
+   ├── analysis/download.py    → file safety checks
+   └── ai/gemini.py            → explanations & tips
+   ↓
+JSON response with severity, flags, explanation
 ```
-
-AI (Gemini) is used **only** to explain risk factors in plain English and generate educational tips.  
-All scoring decisions are made by deterministic heuristics  never by the AI model.  
-No email content or URLs are stored anywhere.
 
 ---
 
 ## Project Structure
 
 ```
-unhookd/
- backend/
-    main.py                # FastAPI app entry point
-    api/
-       analyze.py         # /analyze/email  and  /analyze/link  routes
-    analysis/
-       email.py           # Email phishing heuristics
-       link.py            # Link & download heuristics
-    ai/
-       gemini.py          # Gemini explanation logic
-    models/
-       schemas.py         # Pydantic request/response models
-    utils/
-        scoring.py         # Risk score calculation
+backend/
+  main.py              # FastAPI entry point, CORS config
+  api/analyze.py       # /analyze/email, /analyze/link, /analyze/download routes
+  analysis/
+    email.py           # Email heuristics (sender, subject, urgency, requests)
+    link.py            # Link heuristics (HTTPS, domains, IP addresses, TLDs)
+    download.py        # Download safety checks
+  ai/gemini.py         # Gemini API integration
+  models/schemas.py    # Pydantic request/response models
+  tests/test_api.py    # API tests
 
- extension/
-    manifest.json          # Manifest V3 config
-    background.js          # Service worker  API relay
-    content.js             # Email + link extraction
-    popup.html             # Popup UI layout
-    popup.js               # Popup render logic
-    styles.css             # Popup styles
+extension/
+  manifest.json        # Manifest V3 config
+  background.js        # Service Worker (API relay)
+  content.js           # Content script (extraction)
+  popup.html/js        # Extension popup UI
+  sidebar/             # Side panel UI (Manifest V3)
+  images/              # Icons and assets
+  styles.css
 
- .gitignore
- README.md
+homepage/             # Landing page
+pytest.ini
+README.md
+LICENSE
 ```
 
 ---
@@ -69,43 +63,69 @@ unhookd/
 
 ### `POST /analyze/email`
 
-**Request**
+**Request:**
 ```json
 {
-  "sender":  "support@suspicious-domain.com",
+  "sender": "support@example.com",
   "subject": "Urgent: Verify your account now!",
-  "body":    "Please confirm your password immediately...",
-  "links":   ["http://click-here-now.xyz/verify"]
+  "body": "Click here to confirm your password...",
+  "links": ["http://phishing-site.xyz/verify"]
 }
 ```
 
-**Response**
+**Response:**
 ```json
 {
-  "risk_score":      72,
-  "flags":           ["Urgent Language", "Suspicious Sender Domain"],
-  "ai_explanation":  "This email shows characteristics common in phishing attempts...",
-  "education_tip":   "Navigate directly to the company website instead of clicking links."
+  "severity": "high",
+  "flags": ["Urgent language", "Suspicious sender domain", "Password requested"],
+  "ai_explanation": "This email exhibits phishing characteristics...",
+  "education_tip": "Verify through the official website instead of clicking links."
 }
 ```
+
+Severity levels: `no_risk`, `low`, `medium`, `high`, `critical`
 
 ---
 
 ### `POST /analyze/link`
 
-**Request**
+**Request:**
 ```json
 {
   "url": "http://192.168.1.1/login.exe"
 }
 ```
 
-**Response**
+**Response:**
 ```json
 {
-  "risk_score":     85,
-  "flags":          ["No Https", "Ip Address Url", "Suspicious File Extension"],
-  "ai_explanation": "This link has characteristics that may indicate it is unsafe..."
+  "severity": "critical",
+  "flags": ["No HTTPS", "IP address in URL", "Suspicious file extension"],
+  "ai_explanation": "IP-based URLs bypass reputation checks. .exe suggests malware.",
+  "education_tip": "Never download executables from unfamiliar links."
+}
+```
+
+---
+
+### `POST /analyze/download`
+
+**Request:**
+```json
+{
+  "filename": "Invoice_2024.exe",
+  "size": 2097152,
+  "content_type": "application/octet-stream"
+}
+```
+
+**Response:**
+```json
+{
+  "severity": "high",
+  "flags": ["Executable disguised as document"],
+  "ai_explanation": "Files claiming to be documents but with .exe extensions are common malware vectors.",
+  "education_tip": "Verify file types. An invoice should be .pdf or .xlsx, not .exe."
 }
 ```
 
@@ -113,62 +133,61 @@ unhookd/
 
 ## Getting Started
 
-### Backend
+### Prerequisites
+- Python 3.11+
+- Chrome or Chromium browser
+- pip and venv (included with Python)
+- Optional: Google Gemini API key (for AI explanations)
 
-**Requirements:** Python 3.11+
+### Backend Setup
 
 ```bash
-# Create and activate a virtual environment
 python -m venv .venv
 .venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS / Linux
+# source .venv/bin/activate     # macOS/Linux
 
-# Install dependencies
-pip install fastapi uvicorn pydantic
+pip install fastapi uvicorn pydantic google-generativeai
 
-# Run the development server
+# Optional: enable AI explanations
+set GOOGLE_GEMINI_API_KEY=your-key  # Windows
+# export GOOGLE_GEMINI_API_KEY=your-key  # macOS/Linux
+
 uvicorn backend.main:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`.  
-Interactive docs: `http://localhost:8000/docs`
+API: [http://localhost:8000](http://localhost:8000)  
+Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Chrome Extension
+### Extension Installation
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable **Developer mode** (top-right toggle)
+1. Navigate to `chrome://extensions/`
+2. Enable **Developer mode** (top-right)
 3. Click **Load unpacked** and select the `extension/` folder
-4. The unhookd icon will appear in your toolbar
-
-Make sure the backend is running before using the extension.
+4. Ensure the backend is running before using the extension
 
 ---
 
-## Development Status
+## Implementation Status
 
-This is a hackathon MVP skeleton. All heuristic logic is stubbed with `TODO` comments marking where real implementations should go. The Gemini integration is also stubbed  no API keys are included or required to run the skeleton.
+This is an MVP built for HenHacks 2026. Core infrastructure is complete; analysis heuristics are partially implemented with TODO comments.
 
-### Key TODO areas
-
-| File | What to implement |
-|---|---|
-| `analysis/email.py` | Real phishing heuristics, NLP intent detection |
-| `analysis/link.py`  | DNS/WHOIS lookups, threat-intel feed integration |
-| `utils/scoring.py`  | Weight tuning, compounding logic |
-| `ai/gemini.py`      | Real Gemini API calls (key via environment variable) |
-| `content.js`        | Platform-specific DOM selectors for Gmail / Outlook Web |
-| `popup.js`          | Scan now button, result history |
-
----
+| Component | Status | Notes |
+|---|---|---|
+| API structure | ✓ | FastAPI routes, Pydantic validation, CORS |
+| Email analysis | ⚠ | Basic checks implemented; TODO: NLP enhancements |
+| Link analysis | ⚠ | Domain/protocol checks; TODO: threat feeds |
+| Download analysis | ⚠ | File heuristics stubbed |
+| Extension UI | ✓ | Popup, sidebar, tab switching |
+| Gemini integration | ⚠ | Structure ready; TODO: real API calls, key handling |
+| Tests | ⚠ | Basic tests present; TODO: expand coverage |
 
 ## Privacy
 
-- No user data, email content, or URLs are stored.
-- The backend is stateless  each request is independent.
-- Only sanitised flag metadata (not raw content) is sent to the Gemini API.
-
----
+- No user data, emails, or URLs are stored
+- Backend is stateless; each request is independent
+- Only sanitized flag metadata sent to external services
+- All scoring is deterministic—AI used only for explanations
 
 ## License
 
-MIT  see LICENSE
+MIT – see [LICENSE](LICENSE) for details
