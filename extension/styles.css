@@ -99,7 +99,7 @@ body.expanded {
   position: fixed;
   top: var(--space-md);
   left: var(--space-md);           /* left aligned */
-  padding: 10px 16px;
+  padding: 12px 10px;
   background-color: white;
   color: #000;
   border: none;
