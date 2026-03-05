@@ -21,7 +21,6 @@
 
   "action": {
     "default_icon": "images/logo.png",
-    "default_popup": "popup.html",
     "default_title": "unhookd — Security Scanner"
   },
 
